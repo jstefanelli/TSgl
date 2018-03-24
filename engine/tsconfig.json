@@ -1,0 +1,19 @@
+{
+	"compilerOptions": {    
+		"sourceMap": true,
+		"module": "AMD",
+		"outDir": "../scripts",
+		"target": "es5",
+		"lib": [
+			"es5", "dom"
+		],
+	  "allowSyntheticDefaultImports": true,
+	},
+	"include": [
+		"./*"
+	],
+	"exclude": [
+    "node_modules",
+    "jspm_packages"
+  ]
+}

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<title>The TSgl Experiment</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link rel="stylesheet" type="text/css" media="screen" href="styles/main.css" />
+		<link rel="stylesheet" type="text/css" media="screen" href="engine/styles/jengine.css" />
+		<script src="scripts/jquery-min.js"></script>
+		<script src="scripts/require.js" ></script>
+	</head>
+	<body>
+		<div class="engine-container" id="engine_container">
+			<div class="jfs-container" tabindex="1">
+				<canvas class="engine_gl_canvas">Get a better browser M8</canvas>
+				<canvas class="text_gl_canvas"><br/><br/>No seriously, IE7 doesn't cut it anymore</canvas>
+			</div>
+		</div>
+		<script>
+			requirejs.config({
+				baseUrl: "scripts",
+				paths: {
+					"jquery": "./jquery_main"
+				}
+			});
+
+			requirejs(['init', 'logic/scene', "wrappers/mesh", "resourceManager", "wrappers/material", "tsm"], function(init, scene, mesh, manager, material, tsm){
+				window.engineObject = init.Initializer.init("engine_container");
+				var obj = init.Initializer.startEngine(window.engineObject);
+				console.log("Engine loaded.");
+				window.scene = new scene.Scene(window.engineObject, window.engineObject);
+				var rootHierarchy = window.scene.rootHierarchy;
+				var mat = new material.Material([], [], [new tsm.TSM.vec4([1, 0, 0, 1]), new tsm.TSM.vec4([1, 1, 1, 1])], "basic", window.engineObject);
+				window.engineObject.manager.registerMaterial("defaultMat", mat);
+				window.objId = rootHierarchy.makeGameObject("assets/my_plane.json", manager.MeshProtocol["JMD"], ["/my_plane_0"]);
+				window.obj = rootHierarchy.getSubObject(window.objId);
+				window.engineObject.gotoNextScene(window.scene);
+				window.obj.transform.position.y = -0.25
+				window.obj.transform.orientation.x = tsm.TSM.toRadians(-90.0);
+				var interval = setInterval(function() {
+					window.obj.transform.orientation.y += 0.01;
+					window.engineObject.draw();
+				}, 33);
+			});
+		</script>
+	</body>
+</html>
