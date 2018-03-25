@@ -293,7 +293,7 @@ export class PhongShader extends Shader {
 		\
 		normalDirection = normalize(nrm * vec4(normal, 0.0)).xyz;\
 		\
-		texCoord = tex;\
+		texCoord = vec2(tex.x, 1.0 - tex.y);\
 		\
 	}"
 
