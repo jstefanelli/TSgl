@@ -299,7 +299,7 @@ export class PhongShader extends Shader {
 		position = (mv * vec4(vertices, 1.0)).xyz;\
 		gl_Position = mvp * vec4(vertices, 1.0);\
 		\
-		normalDirection = normalize(nrm * vec4(normal, 0.0)).xyz;\
+		vec3 normalDirection = normalize(nrm * vec4(normal, 0.0)).xyz;\
 		vec3 tangentDirection = normalize(nrm * vec4(tangent, 0.0)).xyz;\
 		vec3 bitangentDirection = normalize(nrm * vec4(bitangent, 0.0)).xyz;\
 		\
@@ -330,7 +330,7 @@ export class PhongShader extends Shader {
 	uniform vec4 lightPosition1;\n\
 	uniform vec4 lightPosition2;\n\
 	\n\
-	varying vec3 TBN;\n\
+	varying mat3 TBN;\n\
 	varying vec2 texCoord;\n\
 	varying vec3 position;\n\
 	\n\
@@ -377,8 +377,8 @@ export class PhongShader extends Shader {
 	vec3 calcNormal(){\n\
 		vec3 N;\n\
 		if(normalEnabled != 0){\n\
-			N = texture2D(normalTexture, texCoord);\n\
-			N = normalize((N * 2) - 1.0);\n\
+			N = texture2D(normalTexture, texCoord).xyz;\n\
+			N = normalize((N * 2.0) - vec3(1.0));\n\
 			N = normalize(TBN * N);\n\
 		}else{\n\
 			N = TBN[2];\n\
