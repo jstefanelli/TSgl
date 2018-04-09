@@ -67,12 +67,16 @@ export class BufferLayout{
 export class Buffer{
 	private id: WebGLBuffer
 	private loaded: boolean = false
-	private content: Array<number>
+	private _content: Array<number>
 	private layout: BufferLayout
 	private e: TSglContext
+
+	get content(): number[]{
+		return this._content
+	}
 	
 	constructor(content: Array<number>, layout: BufferLayout, engine: TSglContext){
-		this.content = content
+		this._content = content
 		this.loaded = false
 		this.layout = layout
 		this.e = engine
@@ -84,7 +88,7 @@ export class Buffer{
 			return null
 		if(newLayout == null)
 			newLayout = other.layout
-		let b : Buffer = new Buffer(other.content, newLayout, other.e)
+		let b : Buffer = new Buffer(other._content, newLayout, other.e)
 		b.id = other.id
 		b.loaded = other.loaded
 		return b
@@ -95,7 +99,7 @@ export class Buffer{
 		this.id = gl.createBuffer()
 		gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.id)
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.content), gl.STATIC_DRAW)
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this._content), gl.STATIC_DRAW)
 		this.loaded = true
 	}
 
@@ -209,6 +213,8 @@ export interface IDrawable{
 	readonly vertices: Buffer
 	readonly normals: Buffer
 	readonly texCoords: Buffer
+	readonly tangents: Buffer
+	readonly bitangents: Buffer
 }
 
 export abstract class Shader implements IResource, ISyncLoadedObject{
@@ -277,14 +283,16 @@ export class PhongShader extends Shader {
 	attribute vec3 vertices;\
 	attribute vec3 normal;\
 	attribute vec2 tex;\
+	attribute vec3 tangent;\
+	attribute vec3 bitangent;\
 	\
 	uniform mat4 mvp;\
 	uniform mat4 mv;\
 	uniform mat4 nrm;\
 	\
-	varying vec3 normalDirection;\
 	varying vec2 texCoord;\
 	varying vec3 position;\
+	varying mat3 TBN;\
 	\
 	void main(){\
 		\
@@ -292,6 +300,10 @@ export class PhongShader extends Shader {
 		gl_Position = mvp * vec4(vertices, 1.0);\
 		\
 		normalDirection = normalize(nrm * vec4(normal, 0.0)).xyz;\
+		vec3 tangentDirection = normalize(nrm * vec4(tangent, 0.0)).xyz;\
+		vec3 bitangentDirection = normalize(nrm * vec4(bitangent, 0.0)).xyz;\
+		\
+		TBN = mat3(tangentDirection, bitangentDirection, normalDirection);\
 		\
 		texCoord = vec2(tex.x, 1.0 - tex.y);\
 		\
@@ -318,7 +330,7 @@ export class PhongShader extends Shader {
 	uniform vec4 lightPosition1;\n\
 	uniform vec4 lightPosition2;\n\
 	\n\
-	varying vec3 normalDirection;\n\
+	varying vec3 TBN;\n\
 	varying vec2 texCoord;\n\
 	varying vec3 position;\n\
 	\n\
@@ -362,13 +374,25 @@ export class PhongShader extends Shader {
 		\n\
 	}\n\
 	\n\
+	vec3 calcNormal(){\n\
+		vec3 N;\n\
+		if(normalEnabled != 0){\n\
+			N = texture2D(normalTexture, texCoord);\n\
+			N = normalize((N * 2) - 1.0);\n\
+			N = normalize(TBN * N);\n\
+		}else{\n\
+			N = TBN[2];\n\
+		}\n\
+		return N;\n\
+	}\n\
 	void main(){\n\
 		\n\
+		vec3 normal = calcNormal();\n\
 		vec3 eyeDir = normalize(vec3(0, 0, 0) - position);\n\
 		vec4 ambient = calcAmbient();\n\
 		vec3 lightDirection0 = getLightDirection(lightPosition0.xyz);\n\
-		vec3 diffuse0 = calcDiffuse(lightDirection0, normalDirection);\n\
-		vec3 specular0 = calcSpecular(lightDirection0, normalDirection, eyeDir);\n\
+		vec3 diffuse0 = calcDiffuse(lightDirection0, normal);\n\
+		vec3 specular0 = calcSpecular(lightDirection0, normal, eyeDir);\n\
 		gl_FragColor = vec4((diffuse0.xyz * lightPosition0.a) + ambient.xyz + (specular0 * lightPosition0.a), diffuseColor.a);\n\
 		\n\
 	}\n"
