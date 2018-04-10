@@ -312,25 +312,46 @@ export class PhongShader extends Shader {
 	}"
 
 	private fsSource = "\n\
+	\n\
 	precision lowp int;\n\
 	precision mediump float;\n\
 	\n\
-	uniform vec4 diffuseColor;\n\
-	uniform vec4 specularColor;\n\
-	uniform vec4 ambientColor;\n\
-	uniform float shininess;\n\
+	struct DirLight{\n\
+		vec3 direction;\n\
+		vec3 color;\n\
+		vec3 factors; /* x is ambient, y is diffuse and z is specular */\n\
+	}\n\
 	\n\
-	uniform sampler2D diffuseTexture;\n\
-	uniform sampler2D specularTexture;\n\
-	uniform sampler2D normalTexture;\n\
+	struct PointLight{\n\
+		vec3 position;\n\
+		vec3 color;\n\
+		vec3 functionFactors; /* x is constant, y is linear and z is quadratic */\n\
+		vec3 factors; /* x is ambient, y is diffuse and z is specular */\n\
+	}\n\
 	\n\
-	uniform int diffuseEnabled;\n\
-	uniform int normalEnabled;\n\
-	uniform int specularEnabled;\n\
+	struct Material{\n\
+		vec3 diffuseColor;\n\
+		vec3 specularColor;\n\
+		vec3 ambientColor;\n\
+		\n\
+		float shininess;\n\
+		float alpha;\n\
+		\n\
+		int diffuseEnabled;\n\
+		int specularEnabled;\n\
+		int normalEnabled;\n\
+		\n\
+		sampler2D diffuseTexture;\n\
+		sampler2D specularTexture;\n\
+		sampler2D normalTexture;\n\
+		\n\
+	}\n\
 	\n\
-	uniform vec4 lightPosition0;\n\
-	uniform vec4 lightPosition1;\n\
-	uniform vec4 lightPosition2;\n\
+	uniform Material mat;\n\
+	\n\
+	uniform DirLight light0;\n\
+	uniform PointLight light1;\n\
+	uniform PointLight light2;\n\
 	\n\
 	varying mat3 TBN;\n\
 	varying vec2 texCoord;\n\
@@ -340,40 +361,65 @@ export class PhongShader extends Shader {
 		return normalize(lightPosition - position);\n\
 	}\n\
 	\n\
-	vec4 calcAmbient(){\n\
-		vec4 diffuse;\n\
-		if(diffuseEnabled != 0){\n\
-			diffuse = texture2D(diffuseTexture, texCoord) * diffuseColor;\n\
+	vec3 calcDirectional(Material m, DirLight l, vec3 normal, vec3 eyeDir){\n\
+		\n\
+		vec3 ambient;\n\
+		vec3 diffuse;\n\
+		vec3 specular;\n\
+		\n\
+		float diffuseFactor = max(dot(l.direction, normal), 0.0);\n\
+		\n\
+		if(m.diffuseEnabled != 0){\n\
+			vec3 texColor = texture2D(m.diffuseTexture, texCoord).xyz;\n\
+			diffuse = texColor * m.diffuseColor * l.factors.y * diffuseFactor;\n\
+			ambient = texColor * m.ambientColor * l.factors.x;\n\
 		}else{\n\
-			diffuse = vec4(1, 1, 1, 1);\n\
+			diffuse = m.diffuseColor * l.factors.y * diffuseFactor;\n\
+			ambient = m.ambientColor * l.factors.x;\n\
 		}\n\
-		return ambientColor * diffuse;\
+		\n\
+		float specularFactor = pow(max(dot(eyeDir, reflect(-l.direction, normal)), 0.0), m.shininess) * ((diffuseFactor >= 0.001) ? 1.0 : 0.0);\n\
+		\n\
+		if(m.specularEnabled != 0){\n\
+			specular = texture2D(m.specularTexture, texCoord).xyz * m.specularColor;\n\
+		}else{\n\
+			specular = m.specularColor;\n\
+		}\n\
+		specular *= specularFactor * l.factors.z;\n\
+		\n\
+		return ambient + diffuse + specular;\n\
 	}\n\
 	\n\
-	vec3 calcDiffuse(vec3 lightDirection, vec3 adjustedNormal){\n\
-		float diffuseFactor = max(dot(lightDirection, adjustedNormal), 0.0);\n\
-		vec4 diffuse;\n\
-		if(diffuseEnabled != 0){\n\
-			diffuse = texture2D(diffuseTexture, texCoord) * diffuseColor;\n\
+	vec3 calcPoint(Material m, PointLight l, vec3 normal, vec3 eyeDir, vec3 position){\n\
+		vec3 ambient;\n\
+		vec3 diffuse;\n\
+		vec3 specular;\n\
+		\n\
+		vec3 lightDirection = l.position - position;\n\
+		float dist = length(lightDirection);\n\
+		lightDirection = normalize(lightDirection);\n\
+		float attenuation = 1.0 / (l.functionFactors.x + (l.functionFactors.y * dist) + (l.functionFactors.z * dist * dist));\n\
+		\n\
+		float diffuseFactor = max(dot(lightDirection, normal), 0.0);\n\
+		float specularFactor = pow(max(dot(eyeDir, reflect(-lightDirection, normal)), 0.0), m.shininess) * ((diffuseFactor >= 0.001) ? 1.0 : 0.0);\n\
+		\n\
+		if(m.diffuseEnabled != 0){\n\
+			vec3 texColor = texture2D(m.diffuseTexture, texCoord).xyz;\n\
+			diffuse = texColor * m.diffuseColor * l.factors.y * diffuseFactor;\n\
+			ambient = texColor * m.ambientColor * l.factors.x;\n\
 		}else{\n\
-			diffuse = diffuseColor;\n\
+			diffuse = m.diffuseColor * l.factors.y * diffuseFactor;\n\
+			ambient = m.ambientColor * l.factors.x;\n\
 		}\n\
-		return diffuse.rgb * diffuseFactor;\n\
-	}\n\
-	\n\
-	vec3 calcSpecular(vec3 lightDirection, vec3 adjustedNormal, vec3 eyeDir){\n\
 		\n\
-		float diffuseFactor = dot(lightDirection, adjustedNormal) >= 0.001 ? 1.0 : 0.0;\n\
-		float specularFactor = pow(max(dot(eyeDir, reflect(-lightDirection, adjustedNormal)), 0.0), shininess) * diffuseFactor;\n\
-		\n\
-		vec4 specular;\n\
-		if(specularEnabled != 0){\n\
-			specular = texture2D(specularTexture, texCoord) * specularColor;\n\
+		if(m.specularEnabled != 0){\n\
+			specular = texture2D(m.specularTexture, texCoord).xyz * m.specularColor;\n\
 		}else{\n\
-			specular = specularColor;\n\
+			specular = m.specularColor;\n\
 		}\n\
-		return specular.rgb * specularFactor;\n\
+		specular *= specularFactor * l.factors.z;\n\
 		\n\
+		return (ambient * attenuation) + (diffuse * attenuation) + (specular * attenuation);\n\
 	}\n\
 	\n\
 	vec3 calcNormal(){\n\
@@ -391,11 +437,9 @@ export class PhongShader extends Shader {
 		\n\
 		vec3 normal = calcNormal();\n\
 		vec3 eyeDir = normalize(vec3(0, 0, 0) - position);\n\
-		vec4 ambient = calcAmbient();\n\
-		vec3 lightDirection0 = getLightDirection(lightPosition0.xyz);\n\
-		vec3 diffuse0 = calcDiffuse(lightDirection0, normal);\n\
-		vec3 specular0 = calcSpecular(lightDirection0, normal, eyeDir);\n\
-		gl_FragColor = vec4((diffuse0.xyz * lightPosition0.a) + ambient.xyz + (specular0 * lightPosition0.a), diffuseColor.a);\n\
+		vec3 output = cakcDirectional(mat, light0, eyeDir);\n\
+		output += calcPoint(mat, light1, eyeDir, position);\n\
+		gl_FragColor = vec4(output, diffuseColor.a);\n\
 		\n\
 	}\n"
 
