@@ -165,8 +165,8 @@ export class Texture implements IAsyncLoadedObject, IResource{
 				gl.generateMipmap(gl.TEXTURE_2D);
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
 			}else{
 				console.log("Texture is not PoT")
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
@@ -255,6 +255,8 @@ export class PhongShader extends Shader {
 	protected vertexLoc: number
 	protected normalLoc: number
 	protected texCoordLoc: number
+	protected tangentLoc: number
+	protected bitangentLoc: number
 	protected diffuseColorLoc: WebGLUniformLocation
 	protected ambientColorLoc: WebGLUniformLocation
 	protected specularColorLoc: WebGLUniformLocation
@@ -399,17 +401,21 @@ export class PhongShader extends Shader {
 
 	draw(status: GLStatus, section: IDrawable, lights: Array<TSM.vec4>): void {
 		let gl = this.e.gl
-
 		gl.useProgram(this.id)
-
+		
 		gl.enableVertexAttribArray(this.vertexLoc)
 		gl.enableVertexAttribArray(this.normalLoc)
 		gl.enableVertexAttribArray(this.texCoordLoc)
+		gl.enableVertexAttribArray(this.tangentLoc)
+		gl.enableVertexAttribArray(this.bitangentLoc)
 
 		section.vertices.bind(this.vertexLoc)
 		section.normals.bind(this.normalLoc)
 		section.texCoords.bind(this.texCoordLoc)
-
+		if(!section.tangents.bind(this.tangentLoc))
+			console.log("Failed to bind tangents")
+		if(!section.bitangents.bind(this.bitangentLoc))
+			console.log("Failed to bind bitangents")
 
 		let diffuseColor = section.material.colors[0]
 		let specularColor = (section.material.colors.length >= 2 && section.material.colors[1]) ? section.material.colors[1] : new TSM.vec4([1, 1, 1, 1])
@@ -435,7 +441,6 @@ export class PhongShader extends Shader {
 		}
 
 		if(section.material.textures.length >= 2){
-			console.log("Enabling normal map")
 			gl.uniform1i(this.normalMapEnableLoc, 1)
 			gl.activeTexture(gl.TEXTURE1)
 			gl.bindTexture(gl.TEXTURE_2D, section.material.textures[1].value.id)
@@ -445,7 +450,6 @@ export class PhongShader extends Shader {
 		}
 
 		if(section.material.textures.length >= 3){
-			console.log("Enabling specular map")
 			gl.uniform1i(this.specularMapEnableLoc, 1)
 			gl.activeTexture(gl.TEXTURE2)
 			gl.bindTexture(gl.TEXTURE_2D, section.material.textures[2].value.id)
@@ -477,6 +481,8 @@ export class PhongShader extends Shader {
 
 		gl.drawArrays(gl.TRIANGLES, section.offset, section.count)
 
+		gl.disableVertexAttribArray(this.bitangentLoc)
+		gl.disableVertexAttribArray(this.tangentLoc)
 		gl.disableVertexAttribArray(this.texCoordLoc)
 		gl.disableVertexAttribArray(this.normalLoc)
 		gl.disableVertexAttribArray(this.vertexLoc)
@@ -523,6 +529,9 @@ export class PhongShader extends Shader {
 		this.normalLoc = gl.getAttribLocation(this.id, "normal")
 		this.texCoordLoc = gl.getAttribLocation(this.id, "tex")
 
+		this.tangentLoc = gl.getAttribLocation(this.id, "tangent")
+		this.bitangentLoc = gl.getAttribLocation(this.id, "bitangent")
+
 		this.mvpLoc = gl.getUniformLocation(this.id, "mvp")
 		this.mvLoc = gl.getUniformLocation(this.id, "mv")
 		this.nrmLoc = gl.getUniformLocation(this.id, "nrm")
@@ -538,6 +547,7 @@ export class PhongShader extends Shader {
 		this.ambientColorLoc = gl.getUniformLocation(this.id, "ambientColor")
 
 		this.normalMapLoc = gl.getUniformLocation(this.id, "normalTexture")
+		printGLError(gl, "Normal map location")
 		this.normalMapEnableLoc = gl.getUniformLocation(this.id, "normalEnabled")
 
 		this.lightPos0Loc = gl.getUniformLocation(this.id, "lightPosition0")
@@ -555,6 +565,36 @@ export class PhongShader extends Shader {
 		gl.deleteProgram(this.id)
 
 		this._loaded = false
+	}
+}
+
+export function printGLError(gl: WebGLRenderingContext, message: string = null){
+	if(message != null)
+		console.log("Starting GL Error dump for: " + message)
+	while(true){
+		let e = gl.getError()
+		switch(e){
+			case gl.NO_ERROR:
+				return
+			case gl.INVALID_ENUM:
+				console.log("GL Error: Invalid_Enum")
+				break;
+			case gl.INVALID_OPERATION:
+				console.log("GL Error: Invalid_Operation")
+				break;
+			case gl.INVALID_VALUE:
+				console.log("GL Error: Invalid_Value")
+				break;
+			case gl.OUT_OF_MEMORY:
+				console.log("GL Error: Out_Of_Memory")
+				break;
+			case gl.INVALID_FRAMEBUFFER_OPERATION:
+				console.log("GL Error: Invalid_Framebuffer_Operation")
+				break;
+			default:
+				console.log("GL Error: Unknown (" + e + ")")
+				break;
+		}
 	}
 }
 
