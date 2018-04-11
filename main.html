@@ -38,6 +38,9 @@
 				window.engineObject.gotoNextScene(window.scene);
 				window.obj.transform.position.y = -0.25
 				window.obj.transform.orientation.x = tsm.TSM.toRadians(-90.0);
+				window.obj.transform.scale.x = 5;
+				window.obj.transform.scale.y = 5;
+				window.obj.transform.scale.z = 5;
 				var interval = setInterval(function() {
 					window.obj.transform.orientation.y += 0.01;
 					window.engineObject.draw();

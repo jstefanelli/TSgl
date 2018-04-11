@@ -4,6 +4,7 @@ import { IResource, IResourceUser, ISyncLoadedObject, ResourceType, ResourceMana
 import { TSM } from "../tsm"
 import { Scene, Hierarchy } from "../logic/scene";
 import { Pair } from "../pair";
+import { Light } from "./light";
 
 export class MeshPart{
 	count: number
@@ -248,7 +249,7 @@ export class MeshInstance implements IAsyncLoadedObject, IResourceUser {
 		return this._loaded
 	}
 
-	draw(status: GLStatus, lights: TSM.vec4[]){
+	draw(status: GLStatus, lights: Light[]){
 		if(!this._loaded)
 			return
 		this.sections.forEach((section: Pair<boolean, MeshPartInstance>) => {

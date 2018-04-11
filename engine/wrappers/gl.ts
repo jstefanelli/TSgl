@@ -2,6 +2,7 @@ import { IAsyncLoadedObject, IResource, ResourceManager, ISyncLoadedObject, Reso
 import { TSM } from "../tsm"
 import { Material } from "./material";
 import { Transform } from "./world";
+import { Light, LightType, DirectionalLight, PointLight } from "./light";
 
 export interface TSglContext{
 	readonly gl: WebGLRenderingContext
@@ -229,7 +230,7 @@ export abstract class Shader implements IResource, ISyncLoadedObject{
 		return ResourceType.SHADER
 	}
 
-	abstract draw(status: GLStatus, section: IDrawable, lights: Array<TSM.vec4>) : void
+	abstract draw(status: GLStatus, section: IDrawable, lights: Array<Light>) : void
 
 	abstract load() : void
 
@@ -239,6 +240,19 @@ export abstract class Shader implements IResource, ISyncLoadedObject{
 		return this._loaded
 	}
 	
+}
+
+export class DirLightLocations{
+	direction: WebGLUniformLocation
+	color: WebGLUniformLocation
+	factors: WebGLUniformLocation
+}
+
+export class PointLightLocations{
+	position: WebGLUniformLocation
+	color: WebGLUniformLocation
+	factors: WebGLUniformLocation
+	functionFactors: WebGLUniformLocation
 }
 
 export class PhongShader extends Shader {
@@ -269,10 +283,12 @@ export class PhongShader extends Shader {
 	protected diffuseMapEnableLoc: WebGLUniformLocation
 	protected normalMapEnableLoc: WebGLUniformLocation
 	protected specularMapEnableLoc: WebGLUniformLocation
+	protected alphaLoc: WebGLUniformLocation
 	protected shininessLoc: WebGLUniformLocation
-	protected lightPos0Loc: WebGLUniformLocation
-	protected lightPos1Loc: WebGLUniformLocation
-	protected lightPos2Loc: WebGLUniformLocation
+	protected static pointLightNumber: number = 8
+	protected dirLightLocs: DirLightLocations = new DirLightLocations()
+	protected pointLightLocs: PointLightLocations[]
+	protected pointLightsNumLoc: WebGLUniformLocation
 	protected id: WebGLProgram
 
 	private constructor(engine: TSglContext){
@@ -349,17 +365,14 @@ export class PhongShader extends Shader {
 	\n\
 	uniform Material mat;\n\
 	\n\
-	uniform DirLight light0;\n\
-	uniform PointLight light1;\n\
-	uniform PointLight light2;\n\
+	const int MAX_POINT_LIGHTS = 6;\n\
+	uniform DirLight dirLight;\n\
+	uniform PointLight pointLights[MAX_POINT_LIGHTS];\n\
+	uniform int pointLightsNum;\n\
 	\n\
 	varying mat3 TBN;\n\
 	varying vec2 texCoord;\n\
 	varying vec3 position;\n\
-	\n\
-	vec3 getLightDirection(vec3 lightPosition){\n\
-		return normalize(lightPosition - position);\n\
-	}\n\
 	\n\
 	vec3 calcDirectional(Material m, DirLight l, vec3 normal, vec3 eyeDir){\n\
 		\n\
@@ -437,13 +450,17 @@ export class PhongShader extends Shader {
 		\n\
 		vec3 normal = calcNormal();\n\
 		vec3 eyeDir = normalize(vec3(0, 0, 0) - position);\n\
-		vec3 result = calcDirectional(mat, light0, normal, eyeDir);\n\
-		result += calcPoint(mat, light1, normal, eyeDir, position);\n\
+		vec3 result = calcDirectional(mat, dirLight, normal, eyeDir);\n\
+		for(int i = 0; i < MAX_POINT_LIGHTS; i++){\n\
+			if(i < pointLightsNum){\n\
+				result += calcPoint(mat, pointLights[i], normal, eyeDir, position);\n\
+			}\n\
+		}\n\
 		gl_FragColor = vec4(result, mat.alpha);\n\
 		\n\
 	}\n"
 
-	draw(status: GLStatus, section: IDrawable, lights: Array<TSM.vec4>): void {
+	draw(status: GLStatus, section: IDrawable, lights: Array<Light>): void {
 		let gl = this.e.gl
 		gl.useProgram(this.id)
 		
@@ -465,15 +482,18 @@ export class PhongShader extends Shader {
 		let specularColor = (section.material.colors.length >= 2 && section.material.colors[1]) ? section.material.colors[1] : new TSM.vec4([1, 1, 1, 1])
 		let ambientColor = (section.material.colors.length >= 3 && section.material.colors[2]) ? section.material.colors[2] : diffuseColor.copy().divide(new TSM.vec4([10, 10, 10, 1]))
 
-		gl.uniform4f(this.diffuseColorLoc, diffuseColor.x, diffuseColor.y, diffuseColor.z, diffuseColor.w)
-		gl.uniform4f(this.ambientColorLoc, ambientColor.x, ambientColor.y, ambientColor.z, ambientColor.w)
-		gl.uniform4f(this.specularColorLoc, specularColor.x, specularColor.y, specularColor.z, specularColor.w)
+		gl.uniform3f(this.diffuseColorLoc, diffuseColor.x, diffuseColor.y, diffuseColor.z)
+		gl.uniform3f(this.ambientColorLoc, ambientColor.x, ambientColor.y, ambientColor.z)
+		gl.uniform3f(this.specularColorLoc, specularColor.x, specularColor.y, specularColor.z)
 
 		gl.uniformMatrix4fv(this.mvpLoc, false, status.mvp.all())
 		gl.uniformMatrix4fv(this.mvLoc, false, status.modelView.all())
 		gl.uniformMatrix4fv(this.nrmLoc, false, status.normalMat.all())
 
 		gl.uniform1f(this.shininessLoc, section.material.shininess)
+		gl.uniform1f(this.alphaLoc, diffuseColor.w)
+
+		
 
 		if(section.material.textures.length >= 1 && section.material.textures[0].value.loaded){
 			gl.uniform1i(this.diffuseMapEnableLoc, 1)
@@ -501,27 +521,38 @@ export class PhongShader extends Shader {
 		}else{
 			gl.uniform1i(this.specularMapEnableLoc, 0)
 		}
+		
+		var dirLightSet = false
+		var pointLightNum = 0
 
-		if(lights.length > 0){
-			let light = lights[0].copy()
-			light.w = 1
-			light = status.viewMatrix.multiplyVec4(light)
-			gl.uniform4f(this.lightPos0Loc, light.x, light.y, light.z, lights[0].w)
-		}
+		lights.forEach(l => {
+			if(l.type == LightType.DIR){
+				if(dirLightSet){
+					console.log("More than one directional light. Skipping...")
+					return
+				}
+				dirLightSet = true
+				let dl = l as DirectionalLight
+				let newDir = new TSM.vec3(status.viewMatrix.multiplyVec4(new TSM.vec4([dl.direction.x, dl.direction.y, dl.direction.z, 0])).xyz)
+				gl.uniform3f(this.dirLightLocs.color, dl.color.x, dl.color.y, dl.color.z)
+				gl.uniform3f(this.dirLightLocs.direction, -newDir.x, -newDir.y, -newDir.z)
+				gl.uniform3f(this.dirLightLocs.factors, dl.factors.x, dl.factors.y, dl.factors.z)
+				return
+			}else if(l.type == LightType.POINT){
+				if(pointLightNum >= PhongShader.pointLightNumber)
+					return;
+				let pl = l as PointLight
+				let loc = this.pointLightLocs[pointLightNum]
+				let newPos = new TSM.vec3(status.viewMatrix.multiplyVec4(new TSM.vec4([pl.position.x, pl.position.y, pl.position.z, 1])).xyz)
+				gl.uniform3f(loc.color, pl.color.x, pl.color.y, pl.color.z)
+				gl.uniform3f(loc.factors, pl.factors.x, pl.factors.y, pl.factors.z)
+				gl.uniform3f(loc.functionFactors, pl.funcFactors.x, pl.funcFactors.y, pl.funcFactors.z)
+				gl.uniform3f(loc.position, newPos.x, newPos.y, newPos.z)
+				pointLightNum++;
+			}
+		});
 
-		if(lights.length > 1){
-			let light = lights[1].copy()
-			light.w = 1
-			light = status.viewMatrix.multiplyVec4(light)
-			gl.uniform4f(this.lightPos1Loc, light.x, light.y, light.z, lights[1].w)
-		}
-
-		if(lights.length > 2){
-			let light = lights[2].copy()
-			light.w = 1
-			light = status.viewMatrix.multiplyVec4(light)
-			gl.uniform4f(this.lightPos2Loc, light.x, light.y, light.z, lights[2].w)
-		}
+		gl.uniform1i(this.pointLightsNumLoc, pointLightNum)
 
 		gl.drawArrays(gl.TRIANGLES, section.offset, section.count)
 
@@ -580,25 +611,37 @@ export class PhongShader extends Shader {
 		this.mvLoc = gl.getUniformLocation(this.id, "mv")
 		this.nrmLoc = gl.getUniformLocation(this.id, "nrm")
 
-		this.diffuseColorLoc = gl.getUniformLocation(this.id, "diffuseColor")
-		this.diffuseMapLoc = gl.getUniformLocation(this.id, "diffuseTexture")
-		this.diffuseMapEnableLoc = gl.getUniformLocation(this.id, "diffuseEnabled")
+		this.diffuseColorLoc = gl.getUniformLocation(this.id, "mat.diffuseColor")
+		this.diffuseMapLoc = gl.getUniformLocation(this.id, "mat.diffuseTexture")
+		this.diffuseMapEnableLoc = gl.getUniformLocation(this.id, "mat.diffuseEnabled")
 
-		this.specularColorLoc = gl.getUniformLocation(this.id, "specularColor")
-		this.specularMapLoc = gl.getUniformLocation(this.id, "specularTexture")
-		this.specularMapEnableLoc = gl.getUniformLocation(this.id, "speculatEnabled")
+		this.specularColorLoc = gl.getUniformLocation(this.id, "mat.specularColor")
+		this.specularMapLoc = gl.getUniformLocation(this.id, "mat.specularTexture")
+		this.specularMapEnableLoc = gl.getUniformLocation(this.id, "mat.speculatEnabled")
 
-		this.ambientColorLoc = gl.getUniformLocation(this.id, "ambientColor")
+		this.ambientColorLoc = gl.getUniformLocation(this.id, "mat.ambientColor")
 
-		this.normalMapLoc = gl.getUniformLocation(this.id, "normalTexture")
-		printGLError(gl, "Normal map location")
-		this.normalMapEnableLoc = gl.getUniformLocation(this.id, "normalEnabled")
+		this.normalMapLoc = gl.getUniformLocation(this.id, "mat.normalTexture")
+		this.normalMapEnableLoc = gl.getUniformLocation(this.id, "mat.normalEnabled")
 
-		this.lightPos0Loc = gl.getUniformLocation(this.id, "lightPosition0")
-		this.lightPos1Loc = gl.getUniformLocation(this.id, "lightPosition1")
-		this.lightPos2Loc = gl.getUniformLocation(this.id, "lightPosition2")
+		this.dirLightLocs.color = gl.getUniformLocation(this.id, "dirLight.color")
+		this.dirLightLocs.direction = gl.getUniformLocation(this.id, "dirLight.direction")
+		this.dirLightLocs.factors = gl.getUniformLocation(this.id, "dirLight.factors")
 
-		this.shininessLoc = gl.getUniformLocation(this.id, "shininess")
+		this.pointLightsNumLoc = gl.getUniformLocation(this.id, "pointLightsNum")
+		
+		this.pointLightLocs = new Array<PointLightLocations>(PhongShader.pointLightNumber)
+
+		for(var i = 0; i < PhongShader.pointLightNumber; i++){
+			this.pointLightLocs[i] = new PointLightLocations()
+			this.pointLightLocs[i].color = gl.getUniformLocation(this.id, "pointLights[" + i + "].color");
+			this.pointLightLocs[i].factors = gl.getUniformLocation(this.id, "pointLights[" + i + "].factors");
+			this.pointLightLocs[i].position = gl.getUniformLocation(this.id, "pointLights[" + i + "].position");
+			this.pointLightLocs[i].functionFactors = gl.getUniformLocation(this.id, "pointLights[" + i + "].functionFactors");
+		}
+
+		this.shininessLoc = gl.getUniformLocation(this.id, "mat.shininess")
+		this.alphaLoc = gl.getUniformLocation(this.id, "mat.alpha")
 
 		this._loaded = true
 	}
@@ -679,7 +722,7 @@ export class BasicShader extends Shader{
 		gl_FragColor = color;\
 	}"
 
-	draw(status: GLStatus, section: IDrawable, lights: Array<TSM.vec4>): void {
+	draw(status: GLStatus, section: IDrawable, lights: Array<Light>): void {
 		let gl = this.e.gl
 
 		gl.useProgram(this.id)

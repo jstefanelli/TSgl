@@ -6,6 +6,7 @@ import { IResourceUser, IResource, ResourceType, IAsyncLoadedObject, MeshProtoco
 import { TSglContext, GLStatus } from "../wrappers/gl";
 import { Engine } from "../engine";
 import { Map } from "../map"
+import { Light, DirectionalLight, PointLight } from "../wrappers/light"
 
 export interface ILogicObject{
 	readonly loaded: boolean
@@ -15,7 +16,7 @@ export interface ILogicObject{
 export class Scene{
 	protected context: TSglContext
 	protected root: Hierarchy 
-	protected lights: TSM.vec4[] = new Array<TSM.vec4>(new TSM.vec4([0, 0, -.5, 1]))
+	protected lights: Light[] = new Array<Light>(new DirectionalLight())
 	protected status: GLStatus = new GLStatus()
 	protected cameraTransform: Transform = Transform.identityTransform
 	protected parent: Engine;
@@ -25,7 +26,21 @@ export class Scene{
 		this.context = context
 		this.root = new Hierarchy("root", this, this.context, Transform.identityTransform)
 		this.status.projectionMatrix = TSM.mat4.perspective(90.0, 16 / 9, 0.01, 100)
-		this.status.viewMatrix = TSM.mat4.lookAt(new TSM.vec3([0, 0, 1]), new TSM.vec3([0, 0, 0]), new TSM.vec3([0, 1, 0]))
+		this.status.viewMatrix = TSM.mat4.lookAt(new TSM.vec3([0, 0, 1]), new TSM.vec3([0, 0, 0]), new TSM.vec3([0, 1, 0]));
+		(this.lights[0] as DirectionalLight).direction = new TSM.vec3([0, -1, 0.5]);
+		(this.lights[0] as DirectionalLight).factors = new TSM.vec3([1, 0.1, 0.0001])
+		let l = new PointLight()
+		l.position = new TSM.vec3([0.0, -0.15, 0])
+		l.funcFactors = new TSM.vec3([1.0, 1.7, 2.2])
+		let l2 = new PointLight()
+		l2.position = new TSM.vec3([-1, -0.15, 0])
+		l2.funcFactors = new TSM.vec3([1.0, 1.7, 2.2])
+		let l3 = new PointLight()
+		l3.position = new TSM.vec3([1, -0.15, 0])
+		l3.funcFactors = new TSM.vec3([1.0, 1.7, 2.2])
+		this.lights.push(l)
+		this.lights.push(l2)
+		this.lights.push(l3)
 	}
 
 	moveCamera(dir: TSM.vec3){
@@ -157,7 +172,7 @@ export class Hierarchy implements ILogicObject{
 		this._loaded = false
 	}
 
-	draw(status: GLStatus, lights: TSM.vec4[]){
+	draw(status: GLStatus, lights: Light[]){
 		if(!this.loaded)
 			return
 		status.applyTransformToModel(this.transform)
@@ -192,7 +207,7 @@ export class GameObject implements ILogicObject{
 		return this._loaded
 	}
 
-	draw(status: GLStatus, lights: TSM.vec4[]){
+	draw(status: GLStatus, lights: Light[]){
 		status.applyTransformToModel(this.transform)
 		this.meshInstance.draw(status, lights)
 		status.revertLastModelTransform()
