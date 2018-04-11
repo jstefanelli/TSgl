@@ -67,12 +67,16 @@ export class BufferLayout{
 export class Buffer{
 	private id: WebGLBuffer
 	private loaded: boolean = false
-	private content: Array<number>
+	private _content: Array<number>
 	private layout: BufferLayout
 	private e: TSglContext
+
+	get content(): number[]{
+		return this._content
+	}
 	
 	constructor(content: Array<number>, layout: BufferLayout, engine: TSglContext){
-		this.content = content
+		this._content = content
 		this.loaded = false
 		this.layout = layout
 		this.e = engine
@@ -84,7 +88,7 @@ export class Buffer{
 			return null
 		if(newLayout == null)
 			newLayout = other.layout
-		let b : Buffer = new Buffer(other.content, newLayout, other.e)
+		let b : Buffer = new Buffer(other._content, newLayout, other.e)
 		b.id = other.id
 		b.loaded = other.loaded
 		return b
@@ -95,7 +99,7 @@ export class Buffer{
 		this.id = gl.createBuffer()
 		gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.id)
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.content), gl.STATIC_DRAW)
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this._content), gl.STATIC_DRAW)
 		this.loaded = true
 	}
 
@@ -161,8 +165,8 @@ export class Texture implements IAsyncLoadedObject, IResource{
 				gl.generateMipmap(gl.TEXTURE_2D);
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
 			}else{
 				console.log("Texture is not PoT")
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
@@ -209,6 +213,8 @@ export interface IDrawable{
 	readonly vertices: Buffer
 	readonly normals: Buffer
 	readonly texCoords: Buffer
+	readonly tangents: Buffer
+	readonly bitangents: Buffer
 }
 
 export abstract class Shader implements IResource, ISyncLoadedObject{
@@ -249,6 +255,8 @@ export class PhongShader extends Shader {
 	protected vertexLoc: number
 	protected normalLoc: number
 	protected texCoordLoc: number
+	protected tangentLoc: number
+	protected bitangentLoc: number
 	protected diffuseColorLoc: WebGLUniformLocation
 	protected ambientColorLoc: WebGLUniformLocation
 	protected specularColorLoc: WebGLUniformLocation
@@ -277,48 +285,75 @@ export class PhongShader extends Shader {
 	attribute vec3 vertices;\
 	attribute vec3 normal;\
 	attribute vec2 tex;\
+	attribute vec3 tangent;\
+	attribute vec3 bitangent;\
 	\
 	uniform mat4 mvp;\
 	uniform mat4 mv;\
 	uniform mat4 nrm;\
 	\
-	varying vec3 normalDirection;\
 	varying vec2 texCoord;\
 	varying vec3 position;\
+	varying mat3 TBN;\
 	\
 	void main(){\
 		\
 		position = (mv * vec4(vertices, 1.0)).xyz;\
 		gl_Position = mvp * vec4(vertices, 1.0);\
 		\
-		normalDirection = normalize(nrm * vec4(normal, 0.0)).xyz;\
+		vec3 normalDirection = normalize(nrm * vec4(normal, 0.0)).xyz;\
+		vec3 tangentDirection = normalize(nrm * vec4(tangent, 0.0)).xyz;\
+		vec3 bitangentDirection = normalize(nrm * vec4(bitangent, 0.0)).xyz;\
+		\
+		TBN = mat3(tangentDirection, bitangentDirection, normalDirection);\
 		\
 		texCoord = vec2(tex.x, 1.0 - tex.y);\
 		\
 	}"
 
 	private fsSource = "\n\
+	\n\
 	precision lowp int;\n\
 	precision mediump float;\n\
 	\n\
-	uniform vec4 diffuseColor;\n\
-	uniform vec4 specularColor;\n\
-	uniform vec4 ambientColor;\n\
-	uniform float shininess;\n\
+	struct DirLight{\n\
+		vec3 direction;\n\
+		vec3 color;\n\
+		vec3 factors; /* x is ambient, y is diffuse and z is specular */\n\
+	}\n\
 	\n\
-	uniform sampler2D diffuseTexture;\n\
-	uniform sampler2D specularTexture;\n\
-	uniform sampler2D normalTexture;\n\
+	struct PointLight{\n\
+		vec3 position;\n\
+		vec3 color;\n\
+		vec3 functionFactors; /* x is constant, y is linear and z is quadratic */\n\
+		vec3 factors; /* x is ambient, y is diffuse and z is specular */\n\
+	}\n\
 	\n\
-	uniform int diffuseEnabled;\n\
-	uniform int normalEnabled;\n\
-	uniform int specularEnabled;\n\
+	struct Material{\n\
+		vec3 diffuseColor;\n\
+		vec3 specularColor;\n\
+		vec3 ambientColor;\n\
+		\n\
+		float shininess;\n\
+		float alpha;\n\
+		\n\
+		int diffuseEnabled;\n\
+		int specularEnabled;\n\
+		int normalEnabled;\n\
+		\n\
+		sampler2D diffuseTexture;\n\
+		sampler2D specularTexture;\n\
+		sampler2D normalTexture;\n\
+		\n\
+	}\n\
 	\n\
-	uniform vec4 lightPosition0;\n\
-	uniform vec4 lightPosition1;\n\
-	uniform vec4 lightPosition2;\n\
+	uniform Material mat;\n\
 	\n\
-	varying vec3 normalDirection;\n\
+	uniform DirLight light0;\n\
+	uniform PointLight light1;\n\
+	uniform PointLight light2;\n\
+	\n\
+	varying mat3 TBN;\n\
 	varying vec2 texCoord;\n\
 	varying vec3 position;\n\
 	\n\
@@ -326,66 +361,105 @@ export class PhongShader extends Shader {
 		return normalize(lightPosition - position);\n\
 	}\n\
 	\n\
-	vec4 calcAmbient(){\n\
-		vec4 diffuse;\n\
-		if(diffuseEnabled != 0){\n\
-			diffuse = texture2D(diffuseTexture, texCoord) * diffuseColor;\n\
+	vec3 calcDirectional(Material m, DirLight l, vec3 normal, vec3 eyeDir){\n\
+		\n\
+		vec3 ambient;\n\
+		vec3 diffuse;\n\
+		vec3 specular;\n\
+		\n\
+		float diffuseFactor = max(dot(l.direction, normal), 0.0);\n\
+		\n\
+		if(m.diffuseEnabled != 0){\n\
+			vec3 texColor = texture2D(m.diffuseTexture, texCoord).xyz;\n\
+			diffuse = texColor * m.diffuseColor * l.factors.y * diffuseFactor;\n\
+			ambient = texColor * m.ambientColor * l.factors.x;\n\
 		}else{\n\
-			diffuse = vec4(1, 1, 1, 1);\n\
+			diffuse = m.diffuseColor * l.factors.y * diffuseFactor;\n\
+			ambient = m.ambientColor * l.factors.x;\n\
 		}\n\
-		return ambientColor * diffuse;\
+		\n\
+		float specularFactor = pow(max(dot(eyeDir, reflect(-l.direction, normal)), 0.0), m.shininess) * ((diffuseFactor >= 0.001) ? 1.0 : 0.0);\n\
+		\n\
+		if(m.specularEnabled != 0){\n\
+			specular = texture2D(m.specularTexture, texCoord).xyz * m.specularColor;\n\
+		}else{\n\
+			specular = m.specularColor;\n\
+		}\n\
+		specular *= specularFactor * l.factors.z;\n\
+		\n\
+		return ambient + diffuse + specular;\n\
 	}\n\
 	\n\
-	vec3 calcDiffuse(vec3 lightDirection, vec3 adjustedNormal){\n\
-		float diffuseFactor = max(dot(lightDirection, adjustedNormal), 0.0);\n\
-		vec4 diffuse;\n\
-		if(diffuseEnabled != 0){\n\
-			diffuse = texture2D(diffuseTexture, texCoord) * diffuseColor;\n\
+	vec3 calcPoint(Material m, PointLight l, vec3 normal, vec3 eyeDir, vec3 position){\n\
+		vec3 ambient;\n\
+		vec3 diffuse;\n\
+		vec3 specular;\n\
+		\n\
+		vec3 lightDirection = l.position - position;\n\
+		float dist = length(lightDirection);\n\
+		lightDirection = normalize(lightDirection);\n\
+		float attenuation = 1.0 / (l.functionFactors.x + (l.functionFactors.y * dist) + (l.functionFactors.z * dist * dist));\n\
+		\n\
+		float diffuseFactor = max(dot(lightDirection, normal), 0.0);\n\
+		float specularFactor = pow(max(dot(eyeDir, reflect(-lightDirection, normal)), 0.0), m.shininess) * ((diffuseFactor >= 0.001) ? 1.0 : 0.0);\n\
+		\n\
+		if(m.diffuseEnabled != 0){\n\
+			vec3 texColor = texture2D(m.diffuseTexture, texCoord).xyz;\n\
+			diffuse = texColor * m.diffuseColor * l.factors.y * diffuseFactor;\n\
+			ambient = texColor * m.ambientColor * l.factors.x;\n\
 		}else{\n\
-			diffuse = diffuseColor;\n\
+			diffuse = m.diffuseColor * l.factors.y * diffuseFactor;\n\
+			ambient = m.ambientColor * l.factors.x;\n\
 		}\n\
-		return diffuse.rgb * diffuseFactor;\n\
+		\n\
+		if(m.specularEnabled != 0){\n\
+			specular = texture2D(m.specularTexture, texCoord).xyz * m.specularColor;\n\
+		}else{\n\
+			specular = m.specularColor;\n\
+		}\n\
+		specular *= specularFactor * l.factors.z;\n\
+		\n\
+		return (ambient * attenuation) + (diffuse * attenuation) + (specular * attenuation);\n\
 	}\n\
 	\n\
-	vec3 calcSpecular(vec3 lightDirection, vec3 adjustedNormal, vec3 eyeDir){\n\
-		\n\
-		float diffuseFactor = dot(lightDirection, adjustedNormal) >= 0.001 ? 1.0 : 0.0;\n\
-		float specularFactor = pow(max(dot(eyeDir, reflect(-lightDirection, adjustedNormal)), 0.0), shininess) * diffuseFactor;\n\
-		\n\
-		vec4 specular;\n\
-		if(specularEnabled != 0){\n\
-			specular = texture2D(specularTexture, texCoord) * specularColor;\n\
+	vec3 calcNormal(){\n\
+		vec3 N;\n\
+		if(normalEnabled != 0){\n\
+			N = texture2D(normalTexture, texCoord).xyz;\n\
+			N = normalize((N * 2.0) - vec3(1.0));\n\
+			N = normalize(TBN * N);\n\
 		}else{\n\
-			specular = specularColor;\n\
+			N = TBN[2];\n\
 		}\n\
-		return specular.rgb * specularFactor;\n\
-		\n\
+		return N;\n\
 	}\n\
-	\n\
 	void main(){\n\
 		\n\
+		vec3 normal = calcNormal();\n\
 		vec3 eyeDir = normalize(vec3(0, 0, 0) - position);\n\
-		vec4 ambient = calcAmbient();\n\
-		vec3 lightDirection0 = getLightDirection(lightPosition0.xyz);\n\
-		vec3 diffuse0 = calcDiffuse(lightDirection0, normalDirection);\n\
-		vec3 specular0 = calcSpecular(lightDirection0, normalDirection, eyeDir);\n\
-		gl_FragColor = vec4((diffuse0.xyz * lightPosition0.a) + ambient.xyz + (specular0 * lightPosition0.a), diffuseColor.a);\n\
+		vec3 output = cakcDirectional(mat, light0, eyeDir);\n\
+		output += calcPoint(mat, light1, eyeDir, position);\n\
+		gl_FragColor = vec4(output, diffuseColor.a);\n\
 		\n\
 	}\n"
 
 	draw(status: GLStatus, section: IDrawable, lights: Array<TSM.vec4>): void {
 		let gl = this.e.gl
-
 		gl.useProgram(this.id)
-
+		
 		gl.enableVertexAttribArray(this.vertexLoc)
 		gl.enableVertexAttribArray(this.normalLoc)
 		gl.enableVertexAttribArray(this.texCoordLoc)
+		gl.enableVertexAttribArray(this.tangentLoc)
+		gl.enableVertexAttribArray(this.bitangentLoc)
 
 		section.vertices.bind(this.vertexLoc)
 		section.normals.bind(this.normalLoc)
 		section.texCoords.bind(this.texCoordLoc)
-
+		if(!section.tangents.bind(this.tangentLoc))
+			console.log("Failed to bind tangents")
+		if(!section.bitangents.bind(this.bitangentLoc))
+			console.log("Failed to bind bitangents")
 
 		let diffuseColor = section.material.colors[0]
 		let specularColor = (section.material.colors.length >= 2 && section.material.colors[1]) ? section.material.colors[1] : new TSM.vec4([1, 1, 1, 1])
@@ -411,7 +485,6 @@ export class PhongShader extends Shader {
 		}
 
 		if(section.material.textures.length >= 2){
-			console.log("Enabling normal map")
 			gl.uniform1i(this.normalMapEnableLoc, 1)
 			gl.activeTexture(gl.TEXTURE1)
 			gl.bindTexture(gl.TEXTURE_2D, section.material.textures[1].value.id)
@@ -421,7 +494,6 @@ export class PhongShader extends Shader {
 		}
 
 		if(section.material.textures.length >= 3){
-			console.log("Enabling specular map")
 			gl.uniform1i(this.specularMapEnableLoc, 1)
 			gl.activeTexture(gl.TEXTURE2)
 			gl.bindTexture(gl.TEXTURE_2D, section.material.textures[2].value.id)
@@ -453,6 +525,8 @@ export class PhongShader extends Shader {
 
 		gl.drawArrays(gl.TRIANGLES, section.offset, section.count)
 
+		gl.disableVertexAttribArray(this.bitangentLoc)
+		gl.disableVertexAttribArray(this.tangentLoc)
 		gl.disableVertexAttribArray(this.texCoordLoc)
 		gl.disableVertexAttribArray(this.normalLoc)
 		gl.disableVertexAttribArray(this.vertexLoc)
@@ -499,6 +573,9 @@ export class PhongShader extends Shader {
 		this.normalLoc = gl.getAttribLocation(this.id, "normal")
 		this.texCoordLoc = gl.getAttribLocation(this.id, "tex")
 
+		this.tangentLoc = gl.getAttribLocation(this.id, "tangent")
+		this.bitangentLoc = gl.getAttribLocation(this.id, "bitangent")
+
 		this.mvpLoc = gl.getUniformLocation(this.id, "mvp")
 		this.mvLoc = gl.getUniformLocation(this.id, "mv")
 		this.nrmLoc = gl.getUniformLocation(this.id, "nrm")
@@ -514,6 +591,7 @@ export class PhongShader extends Shader {
 		this.ambientColorLoc = gl.getUniformLocation(this.id, "ambientColor")
 
 		this.normalMapLoc = gl.getUniformLocation(this.id, "normalTexture")
+		printGLError(gl, "Normal map location")
 		this.normalMapEnableLoc = gl.getUniformLocation(this.id, "normalEnabled")
 
 		this.lightPos0Loc = gl.getUniformLocation(this.id, "lightPosition0")
@@ -531,6 +609,36 @@ export class PhongShader extends Shader {
 		gl.deleteProgram(this.id)
 
 		this._loaded = false
+	}
+}
+
+export function printGLError(gl: WebGLRenderingContext, message: string = null){
+	if(message != null)
+		console.log("Starting GL Error dump for: " + message)
+	while(true){
+		let e = gl.getError()
+		switch(e){
+			case gl.NO_ERROR:
+				return
+			case gl.INVALID_ENUM:
+				console.log("GL Error: Invalid_Enum")
+				break;
+			case gl.INVALID_OPERATION:
+				console.log("GL Error: Invalid_Operation")
+				break;
+			case gl.INVALID_VALUE:
+				console.log("GL Error: Invalid_Value")
+				break;
+			case gl.OUT_OF_MEMORY:
+				console.log("GL Error: Out_Of_Memory")
+				break;
+			case gl.INVALID_FRAMEBUFFER_OPERATION:
+				console.log("GL Error: Invalid_Framebuffer_Operation")
+				break;
+			default:
+				console.log("GL Error: Unknown (" + e + ")")
+				break;
+		}
 	}
 }
 

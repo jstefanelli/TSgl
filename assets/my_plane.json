@@ -35,14 +35,15 @@
 			"material": {
 				"colors": [
 					1, 1, 1, 1,
-					1, 1, 1, 1,
+					1.0, 1.0, 1.0, 1,
 					0.1, 0.1, 0.1, 1
 				],
 				"uvs": [
 					0, 0, 1, 1
 				],
 				"textures": [
-					"assets/textures/prova.png"
+					"assets/textures/brick_d.jpg",
+					"assets/textures/brick_n.jpg"
 				],
 				"shininess": 64,
 				"shaderName": "phong",
