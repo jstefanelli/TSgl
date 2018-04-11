@@ -165,7 +165,7 @@ export class Texture implements IAsyncLoadedObject, IResource{
 				gl.generateMipmap(gl.TEXTURE_2D);
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
 			}else{
 				console.log("Texture is not PoT")
@@ -320,14 +320,14 @@ export class PhongShader extends Shader {
 		vec3 direction;\n\
 		vec3 color;\n\
 		vec3 factors; /* x is ambient, y is diffuse and z is specular */\n\
-	}\n\
+	};\n\
 	\n\
 	struct PointLight{\n\
 		vec3 position;\n\
 		vec3 color;\n\
 		vec3 functionFactors; /* x is constant, y is linear and z is quadratic */\n\
 		vec3 factors; /* x is ambient, y is diffuse and z is specular */\n\
-	}\n\
+	};\n\
 	\n\
 	struct Material{\n\
 		vec3 diffuseColor;\n\
@@ -345,7 +345,7 @@ export class PhongShader extends Shader {
 		sampler2D specularTexture;\n\
 		sampler2D normalTexture;\n\
 		\n\
-	}\n\
+	};\n\
 	\n\
 	uniform Material mat;\n\
 	\n\
@@ -424,8 +424,8 @@ export class PhongShader extends Shader {
 	\n\
 	vec3 calcNormal(){\n\
 		vec3 N;\n\
-		if(normalEnabled != 0){\n\
-			N = texture2D(normalTexture, texCoord).xyz;\n\
+		if(mat.normalEnabled != 0){\n\
+			N = texture2D(mat.normalTexture, texCoord).xyz;\n\
 			N = normalize((N * 2.0) - vec3(1.0));\n\
 			N = normalize(TBN * N);\n\
 		}else{\n\
@@ -437,9 +437,9 @@ export class PhongShader extends Shader {
 		\n\
 		vec3 normal = calcNormal();\n\
 		vec3 eyeDir = normalize(vec3(0, 0, 0) - position);\n\
-		vec3 output = cakcDirectional(mat, light0, eyeDir);\n\
-		output += calcPoint(mat, light1, eyeDir, position);\n\
-		gl_FragColor = vec4(output, diffuseColor.a);\n\
+		vec3 result = calcDirectional(mat, light0, normal, eyeDir);\n\
+		result += calcPoint(mat, light1, normal, eyeDir, position);\n\
+		gl_FragColor = vec4(result, mat.alpha);\n\
 		\n\
 	}\n"
 

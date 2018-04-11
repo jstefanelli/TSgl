@@ -29,7 +29,7 @@ export class jcgShader extends Shader {
 	}
 
 	private compile(){
-		
+			
 	}
 
 	draw(status: GLStatus, section: IDrawable, lights: TSM.vec4[]): void {
