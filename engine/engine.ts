@@ -62,10 +62,10 @@ export class Engine implements TSglContext{
 				return
 			switch(event.which){
 				case 87:
-					this.currentScene.moveCamera(new TSM.vec3([0, 0, -0.1]))
+					this.currentScene.activeCamera.move(new TSM.vec3([0, 0, -0.1]))
 					break
 				case 83:
-					this.currentScene.moveCamera(new TSM.vec3([0, 0, 0.1]))
+					this.currentScene.activeCamera.move(new TSM.vec3([0, 0, 0.1]))
 					break
 			}
 		})

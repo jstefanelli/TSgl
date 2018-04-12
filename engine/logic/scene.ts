@@ -7,6 +7,7 @@ import { TSglContext, GLStatus } from "../wrappers/gl";
 import { Engine } from "../engine";
 import { Map } from "../map"
 import { Light, DirectionalLight, PointLight } from "../wrappers/light"
+import { Camera } from "./camera"
 
 export interface ILogicObject{
 	readonly loaded: boolean
@@ -18,14 +19,14 @@ export class Scene{
 	protected root: Hierarchy 
 	protected lights: Light[] = new Array<Light>(new DirectionalLight())
 	protected status: GLStatus = new GLStatus()
-	protected cameraTransform: Transform = Transform.identityTransform
-	protected parent: Engine;
+	protected parent: Engine
+	protected _activeCamera: Camera
 
 	constructor(parent: Engine, context: TSglContext){
 		this.parent = parent
 		this.context = context
 		this.root = new Hierarchy("root", this, this.context, Transform.identityTransform)
-		this.status.viewMatrix = TSM.mat4.lookAt(new TSM.vec3([0, 0, 1]), new TSM.vec3([0, 0, 0]), new TSM.vec3([0, 1, 0]));
+		this._activeCamera = new Camera();
 		(this.lights[0] as DirectionalLight).direction = new TSM.vec3([0, -1, 0.5]);
 		(this.lights[0] as DirectionalLight).factors = new TSM.vec3([1, 0.1, 0.0001])
 		let l = new PointLight()
@@ -42,15 +43,9 @@ export class Scene{
 		this.lights.push(l3)
 	}
 
-	moveCamera(dir: TSM.vec3){
-		this.cameraTransform.position.add(dir)
-	}
-
 	draw(){
-		this.status.viewMatrix.translate(this.cameraTransform.position.negate(new TSM.vec3()))
+		this.status.applyCamera(this._activeCamera)
 		this.root.draw(this.status, this.lights)
-		this.status.viewMatrix.translate(this.cameraTransform.position)
-		
 	}
 
 	loadAsync(){
@@ -71,6 +66,14 @@ export class Scene{
 
 	get glStatus(): GLStatus{
 		return this.status
+	}
+
+	set activeCamera(c: Camera){
+		this._activeCamera = c
+	}
+
+	get activeCamera(): Camera{
+		return this._activeCamera
 	}
 }
 
@@ -121,7 +124,7 @@ export class Hierarchy implements ILogicObject{
 	}
 
 	makeHierarchy(transform: Transform): string{
-		let hrc = new Hierarchy(this.id + "_" + this.hierarchies.length, this, this.context, transform)
+		let hrc = new Hierarchy(this.id + "/" + this.hierarchies.length, this, this.context, transform)
 		this.hierarchies.push(hrc)
 		return hrc.id
 	}

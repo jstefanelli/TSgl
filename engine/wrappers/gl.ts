@@ -3,6 +3,7 @@ import { TSM } from "../tsm"
 import { Material } from "./material";
 import { Transform } from "./world";
 import { Light, LightType, DirectionalLight, PointLight } from "./light";
+import { Camera } from "../logic/camera"
 
 export interface TSglContext{
 	readonly gl: WebGLRenderingContext
@@ -791,6 +792,7 @@ export class BasicShader extends Shader{
 }
 
 export class GLStatus{
+	private static defaultViewMatrix: TSM.mat4 = TSM.mat4.lookAt(new TSM.vec3([0, 0, 0]), new TSM.vec3([0, 0, -1]), new TSM.vec3([0, 1, 0])) 
 	private modelStack: Array<TSM.mat4> = new Array<TSM.mat4>()
 	private _modelMatrix: TSM.mat4 = TSM.mat4.identity
 	private _viewMatrix: TSM.mat4 = TSM.mat4.identity
@@ -808,6 +810,8 @@ export class GLStatus{
 		this._near = near
 		this._far = far
 		this.updateProjectionMatrix()
+		this.viewMatrix = GLStatus.defaultViewMatrix.copy()
+		this.updateBuiltIns()
 	}
 
 	private updateProjectionMatrix(){
@@ -937,6 +941,19 @@ export class GLStatus{
 		q.y = cy * cr * sp + sy * sr * cp;
 		q.z = sy * cr * cp - cy * sr * sp;
 		return q;
+	}
+
+	applyCamera(c: Camera){
+		this._fov = c.fov
+		this._near = c.nearPlane
+		this._far = c.farPlane
+		this.updateProjectionMatrix()
+		this.viewMatrix = GLStatus.defaultViewMatrix.copy()
+		this.viewMatrix.translate(c.position.copy().negate())
+		this.viewMatrix.rotate(-c.orientation.y, new TSM.vec3([0, 1, 0]))
+		this.viewMatrix.rotate(-c.orientation.x, new TSM.vec3([1, 0, 0]))
+		this.viewMatrix.rotate(-c.orientation.z, new TSM.vec3([0, 0, 1]))
+		this.updateBuiltIns()
 	}
 
 	applyTransformToModel(t: Transform){
