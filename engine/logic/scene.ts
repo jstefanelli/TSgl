@@ -25,7 +25,6 @@ export class Scene{
 		this.parent = parent
 		this.context = context
 		this.root = new Hierarchy("root", this, this.context, Transform.identityTransform)
-		this.status.projectionMatrix = TSM.mat4.perspective(90.0, 16 / 9, 0.01, 100)
 		this.status.viewMatrix = TSM.mat4.lookAt(new TSM.vec3([0, 0, 1]), new TSM.vec3([0, 0, 0]), new TSM.vec3([0, 1, 0]));
 		(this.lights[0] as DirectionalLight).direction = new TSM.vec3([0, -1, 0.5]);
 		(this.lights[0] as DirectionalLight).factors = new TSM.vec3([1, 0.1, 0.0001])
@@ -68,6 +67,10 @@ export class Scene{
 
 	onRootHierarchyLoaded(){
 		this.parent.onSceneLoaded(this)
+	}
+
+	get glStatus(): GLStatus{
+		return this.status
 	}
 }
 

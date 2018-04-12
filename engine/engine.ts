@@ -48,6 +48,11 @@ export class Engine implements TSglContext{
 				let c2 = that.textc[0] as HTMLCanvasElement
 				c2.width = that.textc[0].clientWidth
 				c2.height = that.textc[0].clientHeight
+
+				if(this.currentScene != null){
+					this.currentScene.glStatus.frameWidth = c.width
+					this.currentScene.glStatus.frameHeight = c.height
+				}
 			}
 		)
 		

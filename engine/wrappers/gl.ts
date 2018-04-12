@@ -795,6 +795,69 @@ export class GLStatus{
 	private _modelMatrix: TSM.mat4 = TSM.mat4.identity
 	private _viewMatrix: TSM.mat4 = TSM.mat4.identity
 	private _projectionMatrix: TSM.mat4 = TSM.mat4.identity
+	private _frameWidth: number
+	private _frameHeight: number
+	private _fov: number
+	private _near: number
+	private _far: number
+
+	constructor(width: number = 1280, height: number = 720, fov: number = 90.0, near: number = 0.01, far: number = 100){
+		this._frameWidth = width
+		this._frameHeight = height
+		this._fov = fov
+		this._near = near
+		this._far = far
+		this.updateProjectionMatrix()
+	}
+
+	private updateProjectionMatrix(){
+		this._projectionMatrix = TSM.mat4.perspective(this._fov, this._frameWidth / this._frameHeight, this._near, this._far)
+	}
+
+	set frameWidth(width: number){
+		this._frameWidth = width
+		this.updateProjectionMatrix()
+	}
+
+	get frameWidth(): number{
+		return this._frameWidth
+	}
+
+	set frameHeight(height: number){
+		this._frameHeight = height
+		this.updateProjectionMatrix()
+	}
+
+	get frameHeight(): number{
+		return this._frameHeight
+	}
+
+	set fov(fovDeg: number){
+		this._fov = fovDeg
+		this.updateProjectionMatrix()
+	}
+
+	get fov(): number{
+		return this._fov
+	}
+
+	set farPlane(far: number){
+		this._far = far
+		this.updateProjectionMatrix()
+	}
+
+	get farPlane(): number{
+		return this._far
+	}
+
+	set nearPlane(near: number){
+		this._near = near
+		this.updateProjectionMatrix()
+	}
+
+	get nearPlane(){
+		return this._near
+	}
 
 	get modelMatrix() : TSM.mat4{
 		return this._modelMatrix
