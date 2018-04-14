@@ -140,6 +140,9 @@ export class Texture implements IAsyncLoadedObject, IResource{
 	private loading: boolean = false
 	private remoteResourceAddress: string = ""
 
+	private static supportsAnisotropy: boolean = null
+	private static anisotropyExtension: EXT_texture_filter_anisotropic = null
+
 	constructor(remoteResourceAddress: string, engine: TSglContext){
 		this.e = engine
 		this.remoteResourceAddress = remoteResourceAddress;
@@ -156,6 +159,27 @@ export class Texture implements IAsyncLoadedObject, IResource{
 	loadAsync(owner: (object: IAsyncLoadedObject) => void){
 		this.loading = true
 		let gl = this.e.gl
+		if(Texture.supportsAnisotropy === null){
+			var mz = gl.getExtension("MOZ_EXT_texture_filter_anisotropic")
+			let ext = gl.getExtension("EXT_texture_filter_anisotropic") 
+			if(ext != null)
+				mz = ext
+			if(mz != null){
+				Texture.anisotropyExtension = mz
+				Texture.supportsAnisotropy = true
+			}else{
+				let wk = gl.getExtension("WBKIT_EXT_texture_filter_anisotropic") 
+				if(wk != null){
+					Texture.anisotropyExtension = wk
+					Texture.supportsAnisotropy = true
+				}else{
+					Texture.supportsAnisotropy = false
+				}
+			}
+			if(Texture.supportsAnisotropy){
+				console.log("Anisotropic filitering supported.")
+			}
+		}
 		this._id = gl.createTexture()
 		let i : HTMLImageElement = document.createElement("img")
 		i.onload =  () => {
@@ -169,6 +193,9 @@ export class Texture implements IAsyncLoadedObject, IResource{
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+				if(Texture.supportsAnisotropy){
+					gl.texParameterf(gl.TEXTURE_2D, Texture.anisotropyExtension.TEXTURE_MAX_ANISOTROPY_EXT, 4)
+				}
 			}else{
 				console.log("Texture is not PoT")
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
