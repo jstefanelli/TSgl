@@ -16,7 +16,7 @@ export class DirectionalLight implements Light{
 	protected _factors: TSM.vec3 = new TSM.vec3([1, 1, 1])
 
 	set direction(dir: TSM.vec3){
-		this._direction = dir
+		this._direction = dir.copy().normalize()
 	}
 
 	get direction(): TSM.vec3{
@@ -47,7 +47,7 @@ export class DirectionalLight implements Light{
 export class PointLight implements Light{
 	protected _position: TSM.vec3 = new TSM.vec3([0, -1, 0])
 	protected _color: TSM.vec3 = new TSM.vec3([1, 1, 1])
-	protected _factors: TSM.vec3 = new TSM.vec3([0, 1, 1])
+	protected _factors: TSM.vec3 = new TSM.vec3([0, 1, 0])
 	protected _range: number = 10
 	protected _funcFactors: TSM.vec3 = new TSM.vec3([1, 0.1, 0.01])
 
