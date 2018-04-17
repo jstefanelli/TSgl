@@ -566,7 +566,6 @@ export class PhongShader extends Shader {
 				let newDir = new TSM.vec3(status.viewMatrix.multiplyVec4(new TSM.vec4([dl.direction.x, dl.direction.y, dl.direction.z, 0])).xyz)
 				gl.uniform3f(this.dirLightLocs.color, dl.color.x, dl.color.y, dl.color.z)
 				gl.uniform3f(this.dirLightLocs.direction, -newDir.x, -newDir.y, -newDir.z)
-				console.log("Factors: " + dl.factors.x + " " + dl.factors.y + " " + dl.factors.z)
 				gl.uniform3f(this.dirLightLocs.factors, dl.factors.x, dl.factors.y, dl.factors.z)
 				return
 			}else if(l.type == LightType.POINT){
