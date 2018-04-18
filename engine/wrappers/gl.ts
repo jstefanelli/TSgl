@@ -313,7 +313,7 @@ export class PhongShader extends Shader {
 	protected specularMapEnableLoc: WebGLUniformLocation
 	protected alphaLoc: WebGLUniformLocation
 	protected shininessLoc: WebGLUniformLocation
-	protected static pointLightNumber: number = 8
+	protected static pointLightNumber: number = 12
 	protected dirLightLocs: DirLightLocations = new DirLightLocations()
 	protected pointLightLocs: PointLightLocations[]
 	protected pointLightsNumLoc: WebGLUniformLocation
@@ -393,7 +393,7 @@ export class PhongShader extends Shader {
 	\n\
 	uniform Material mat;\n\
 	\n\
-	const int MAX_POINT_LIGHTS = 6;\n\
+	const int MAX_POINT_LIGHTS = 12;\n\
 	uniform DirLight dirLight;\n\
 	uniform PointLight pointLights[MAX_POINT_LIGHTS];\n\
 	uniform int pointLightsNum;\n\
