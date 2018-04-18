@@ -313,7 +313,7 @@ export class PhongShader extends Shader {
 	protected specularMapEnableLoc: WebGLUniformLocation
 	protected alphaLoc: WebGLUniformLocation
 	protected shininessLoc: WebGLUniformLocation
-	protected static pointLightNumber: number = 12
+	public static readonly pointLightNumber: number = 12
 	protected dirLightLocs: DirLightLocations = new DirLightLocations()
 	protected pointLightLocs: PointLightLocations[]
 	protected pointLightsNumLoc: WebGLUniformLocation

@@ -3,10 +3,10 @@ import { Mesh, MeshInstance } from "../wrappers/mesh"
 import { Material } from "../wrappers/material"
 import { TSM } from "../tsm"
 import { IResourceUser, IResource, ResourceType, IAsyncLoadedObject, MeshProtocol, ReferenceHolder, ResourceManager } from "../resourceManager";
-import { TSglContext, GLStatus } from "../wrappers/gl";
+import { TSglContext, GLStatus, PhongShader } from "../wrappers/gl";
 import { Engine } from "../engine";
 import { Map } from "../map"
-import { Light, DirectionalLight, PointLight } from "../wrappers/light"
+import { Light, DirectionalLight, PointLight, LightType } from "../wrappers/light"
 import { Camera } from "./camera"
 
 export interface ILogicObject{
@@ -43,9 +43,39 @@ export class Scene{
 		this.lights.push(l3)
 	}
 
+	private static getDistance(p1: TSM.vec3, p2: TSM.vec3) : number{
+		return p1.copy().subtract(p2).length()
+	}
+
+
 	draw(){
+		var dirLight: Light = null;
+		let pointLights = new Array<PointLight>()
+
+		this.lights.forEach((light) => {
+			if(light.type == LightType.DIR && dirLight == null){
+				dirLight = light
+				return
+			}
+			if(light.type == LightType.POINT){
+				let pl: PointLight = light as PointLight
+				pointLights.push(pl)
+			}
+		})
+
+		pointLights.sort((a: PointLight, b: PointLight) : number => {
+			return Scene.getDistance(a.position, this._activeCamera.position) - Scene.getDistance(b.position, this._activeCamera.position)
+		})
+		pointLights = pointLights.slice(0, PhongShader.pointLightNumber)
+
+		let lts = new Array<Light>()
+		lts.push(dirLight)
+		pointLights.forEach((light) => {
+			lts.push(light)
+		})
+
 		this.status.applyCamera(this._activeCamera)
-		this.root.draw(this.status, this.lights)
+		this.root.draw(this.status, lts)
 	}
 
 	loadAsync(){
