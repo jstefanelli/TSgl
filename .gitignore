@@ -1,11 +1,4 @@
 node_modules/
 scripts/*.js.map
-scripts/engine.js
-scripts/init.js
-scripts/map.js
-scripts/pair.js
-scripts/resourceManager.js
-scripts/tsm.js
-scripts/fileTypes
-scripts/logic
-scripts/wrappers
+scripts/engine/*
+scripts/game/*
