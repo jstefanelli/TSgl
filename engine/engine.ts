@@ -6,6 +6,12 @@ import { TSM } from "./tsm"
 import { ResourceManager } from "./resourceManager";
 import { Scene } from "./logic/scene"
 
+export interface KeyboardCallback{
+	onKeyDown(key: number)
+	onKeyUp(key: number)
+	onKeyPress(key: number)
+}
+
 export class Engine implements TSglContext{
 	private glc: JQuery
 	private textc: JQuery
@@ -15,7 +21,8 @@ export class Engine implements TSglContext{
 	private loaded: Boolean = false
 	private currentScene: Scene = null
 	private nextScene: Scene = null
-	private _manager: ResourceManager 
+	private _manager: ResourceManager
+	private _keybCB: KeyboardCallback = null
 
 	get manager() : ResourceManager{
 		return this._manager
@@ -57,17 +64,21 @@ export class Engine implements TSglContext{
 		)
 		
 		this.container.on("keydown", (event: JQuery.Event) => {
-			console.log("Keydown..." + event.which)
-			if(this.currentScene == null)
+			if(this._keybCB == null)
 				return
-			switch(event.which){
-				case 87:
-					this.currentScene.activeCamera.move(new TSM.vec3([0, 0, -0.1]))
-					break
-				case 83:
-					this.currentScene.activeCamera.move(new TSM.vec3([0, 0, 0.1]))
-					break
-			}
+			this._keybCB.onKeyDown(event.which)
+		})
+
+		this.container.on("keyup", (event: JQuery.Event) => {
+			if(this._keybCB == null)
+				return
+			this._keybCB.onKeyUp(event.which)
+		})
+
+		this.container.on("keypress", (event: JQuery.Event) => {
+			if(this._keybCB == null)
+				return
+			this._keybCB.onKeyUp(event.which)
 		})
 
 		let c = this.glc[0] as HTMLCanvasElement
@@ -111,5 +122,13 @@ export class Engine implements TSglContext{
 
 	onSceneLoaded(next: Scene){
 		this.currentScene = next
+	}
+
+	set keyboardCB(cb: KeyboardCallback){
+		this._keybCB = cb
+	}
+
+	get keyboardCB() : KeyboardCallback{
+		return this._keybCB
 	}
 }
