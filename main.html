@@ -25,10 +25,10 @@
 				}
 			});
 
-			requirejs(['init', 'logic/scene', "wrappers/mesh", "resourceManager", "wrappers/material", "tsm"], function(init, scene, mesh, manager, material, tsm){
+			requirejs(['engine/init', 'engine/logic/scene', "engine/wrappers/mesh", "engine/resourceManager", "engine/wrappers/material", "engine/tsm", "engine/collision/shapes/box"], function(init, scene, mesh, manager, material, tsm, box){
 				window.engineObject = init.Initializer.init("engine_container");
-				var obj = init.Initializer.startEngine(window.engineObject);
 				console.log("Engine loaded.");
+				box.CollisionBox.runTest();
 				window.scene = new scene.Scene(window.engineObject, window.engineObject);
 				var rootHierarchy = window.scene.rootHierarchy;
 				var mat = new material.Material([], [], [new tsm.TSM.vec4([1, 0, 0, 1]), new tsm.TSM.vec4([1, 1, 1, 1])], "basic", window.engineObject);

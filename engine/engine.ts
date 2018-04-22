@@ -5,6 +5,7 @@ import { Transform } from "./wrappers/world"
 import { TSM } from "./tsm"
 import { ResourceManager } from "./resourceManager";
 import { Scene } from "./logic/scene"
+import { CollisionBox } from "./collision/shapes/box"
 
 export interface KeyboardCallback{
 	onKeyDown(key: number)
