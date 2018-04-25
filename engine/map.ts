@@ -1,6 +1,6 @@
 export class Map<key, value>{
 	private keys: Array<key> = new Array<key>()
-	private values: Array<value> = new Array<value>()
+	private _values: Array<value> = new Array<value>()
 
 	constructor(){
 
@@ -10,34 +10,42 @@ export class Map<key, value>{
 		let i : number = this.keys.indexOf(index)
 		if(i == -1)
 			return undefined
-		return this.values[i]
+		return this._values[i]
 	}
 
 	set(index: key, val: value){
 		let i : number = this.keys.indexOf(index)
 		if(i == -1){
 			this.keys.push(index)
-			this.values.push(val)
+			this._values.push(val)
 		}else{
-			this.values[i] = val
+			this._values[i] = val
 		}
+	}
+
+	amount() : number{
+		return this.keys.length
 	}
 
 	clear(){
 		this.keys = new Array<key>()
-		this.values = new Array<value>()
+		this._values = new Array<value>()
 	}
 
 	delete(index: key) : value{
 		let i : number = this.keys.indexOf(index)
 		if(i == -1)
 			return undefined
-		let v = this.values[i]
+		let v = this._values[i]
 		this.keys.splice(i, 1)
-		this.values.splice(i, 1)
+		this._values.splice(i, 1)
 	}
 
 	has(index: key) : boolean{
 		return this.keys.indexOf(index) != -1
+	}
+
+	get values(): Array<value>{
+		return this._values
 	}
 }

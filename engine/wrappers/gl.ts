@@ -4,6 +4,7 @@ import { Material } from "./material";
 import { Transform } from "./world";
 import { Light, LightType, DirectionalLight, PointLight } from "./light";
 import { Camera } from "../logic/camera"
+import { CollisionBox } from "../collision/shapes/box";
 
 export interface TSglContext{
 	readonly gl: WebGLRenderingContext
@@ -25,6 +26,10 @@ export class BufferLayout{
 
 	public static defaultTexCoordLayout(e: TSglContext) : BufferLayout{
 		return new BufferLayout(0, 2, 0, e.gl.FLOAT, BufferMnemonics.TEXTURE)
+	}
+
+	public static defaultIndexLayout(e: TSglContext) : BufferLayout{
+		return new BufferLayout(0, 1, 0, e.gl.UNSIGNED_SHORT, BufferMnemonics.INDEX)
 	}
 
 	private _offset: number
@@ -66,6 +71,7 @@ export class BufferLayout{
 	}
 }
 
+
 export class Buffer{
 	private id: WebGLBuffer
 	private loaded: boolean = false
@@ -99,9 +105,11 @@ export class Buffer{
 	load(){
 		let gl = this.e.gl
 		this.id = gl.createBuffer()
-		gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.id)
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this._content), gl.STATIC_DRAW)
+		if(this.layout.type == gl.FLOAT)
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this._content), gl.STATIC_DRAW)
+		else if(this.layout.type == gl.UNSIGNED_SHORT)
+			gl.bufferData(gl.ARRAY_BUFFER, new Uint16Array(this._content), gl.STATIC_DRAW)
 		this.loaded = true
 	}
 
@@ -112,6 +120,15 @@ export class Buffer{
 		}
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.id)
 		gl.vertexAttribPointer(target, this.layout.size, this.layout.type, false, this.layout.stride, this.layout.offset)
+		return true
+	}
+
+	bindElement() : boolean{
+		let gl = this.e.gl
+		if(!this.loaded){
+			return false
+		}
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.id)
 		return true
 	}
 
@@ -716,6 +733,8 @@ export function printGLError(gl: WebGLRenderingContext, message: string = null){
 }
 
 export class BasicShader extends Shader{
+	public static coillisionBoxColor: TSM.vec4 = new TSM.vec4([0, 1, 0, 1])
+
 	protected vertexLoc: number
 	protected colorLoc: WebGLUniformLocation
 	protected mvpLoc: WebGLUniformLocation
@@ -766,6 +785,28 @@ export class BasicShader extends Shader{
 		gl.drawArrays(gl.TRIANGLES, section.offset, section.count)
 
 		gl.disableVertexAttribArray(this.vertexLoc)
+	}
+
+	drawCollider(status: GLStatus, collider: CollisionBox): void{
+		let gl = this.e.gl
+
+		if(CollisionBox.staticLoaded)
+			CollisionBox.staticLoad(this.e)
+		
+		status.applyTransformToModel(collider.transform)
+
+		gl.useProgram(this.id)
+
+		gl.enableVertexAttribArray(this.vertexLoc)
+		CollisionBox.vertBuffer.bind(this.vertexLoc)
+		gl.uniform4f(this.colorLoc, BasicShader.coillisionBoxColor.x, BasicShader.coillisionBoxColor.y, BasicShader.coillisionBoxColor.z, BasicShader.coillisionBoxColor.w)
+		gl.uniformMatrix4fv(this.mvpLoc, false, status.mvp.all())
+
+		CollisionBox.indexBuffer.bindElement()
+		gl.drawElements(gl.LINES, 30, gl.UNSIGNED_SHORT, 0)
+
+		gl.disableVertexAttribArray(this.vertexLoc)
+
 	}
 
 	load(): void {
