@@ -1,6 +1,7 @@
 import { TSM } from "../../tsm"
 import { Transform } from "../../wrappers/world"
 import { CollisionWorld } from "../collisionWorld";
+import { CollisionSphere} from "./sphere"
 import { GLStatus, TSglContext, Buffer, BufferLayout } from "../../wrappers/gl";
 import { Light } from "../../wrappers/light";
 
@@ -62,7 +63,7 @@ export class CollisionBox{
 		this.isStatic = false
 	}
 
-	collides2D(other: CollisionBox) : boolean{
+	private collides2DBox(other: CollisionBox) : boolean{
 		let myRotationMatrix = TSM.mat2.identity
 		myRotationMatrix.rotate(this.transform.orientation.y)
 
@@ -84,10 +85,10 @@ export class CollisionBox{
 		let directionXM = myVertexXMZM.copy().subtract(myVertexXMZP).normalize();
 		let directionXP = oVertexXPZM.copy().subtract(oVertexXPZP).normalize();
 		let rotMats : TSM.mat2[] = [
-			new TSM.mat2([directionZP.x, directionZP.y, -directionZP.y, directionZP.x]), 
-			new TSM.mat2([directionZM.x, directionZM.y, -directionZM.y, directionZM.x]),
-			new TSM.mat2([directionXM.x, directionXM.y, -directionXM.y, directionXM.x]),
-			new TSM.mat2([directionXP.x, directionXP.y, -directionXP.y, directionXP.x])
+			new TSM.mat2([directionZP.x, -directionZP.y, directionZP.y, directionZP.x]), 
+			new TSM.mat2([directionZM.x, -directionZM.y, directionZM.y, directionZM.x]),
+			new TSM.mat2([directionXM.x, -directionXM.y, directionXM.y, directionXM.x]),
+			new TSM.mat2([directionXP.x, -directionXP.y, directionXP.y, directionXP.x])
 		]
 
 		for(var i = 0; i < 4; i++){
@@ -117,6 +118,56 @@ export class CollisionBox{
 		return true
 	}
 
+	private distanceFromSegment(v: TSM.vec2, w: TSM.vec2, p: TSM.vec2) : number {
+		let len2: number = TSM.vec2.squaredDistance(v, w)
+
+		if(len2 == 0.0)
+			return TSM.vec2.distance(v, p)
+
+		let w_v = w.copy().subtract(v)
+
+		let t = Math.max(0, Math.min(1, TSM.vec2.dot(p.copy().subtract(w), w_v) / len2))
+		let projection: TSM.vec2 = v.copy().add(w_v.copy().multiply(new TSM.vec2([t, t])))
+		return TSM.vec2.distance(projection, p)
+	}
+
+	private collides2DSphere(other: CollisionSphere) : boolean{
+		let myRotationMatrix = TSM.mat2.identity
+		myRotationMatrix.rotate(this.transform.orientation.y)
+
+		let myVertexXMZP = new TSM.vec2([this.transform.position.x - (0.5 * this.transform.scale.x), this.transform.position.z + (0.5 * this.transform.scale.z)]).multiplyMat2(myRotationMatrix)
+		let	myVertexXPZP = new TSM.vec2([this.transform.position.x + (0.5 * this.transform.scale.x), this.transform.position.z + (0.5 * this.transform.scale.z)]).multiplyMat2(myRotationMatrix)
+		let myVertexXMZM = new TSM.vec2([this.transform.position.x - (0.5 * this.transform.scale.x), this.transform.position.z - (0.5 * this.transform.scale.z)]).multiplyMat2(myRotationMatrix)
+		let myVertexXPZM = new TSM.vec2([this.transform.position.x + (0.5 * this.transform.scale.x), this.transform.position.z - (0.5 * this.transform.scale.z)]).multiplyMat2(myRotationMatrix)
+
+		let vertices: TSM.vec2[] = [
+			myVertexXMZM,
+			myVertexXMZP,
+			myVertexXPZP,
+			myVertexXPZM
+		]
+
+		var min = Number.MAX_VALUE;
+
+		let other_center = new TSM.vec2([other.transform.position.x, other.transform.position.z])
+
+		for(var i = 0; i < 4; i++){
+			let i2 = (i == 3) ? 0 : i + 1
+			let dist = this.distanceFromSegment(vertices[i], vertices[i2], other_center)
+			if(dist < min)
+				min = dist;
+		}
+
+		return min <= other.transform.scale.x;
+	}
+
+	collides2D(other: CollisionBox | CollisionSphere) : boolean{
+		if(other instanceof CollisionBox)
+			return this.collides2DBox(other)
+		else
+			return this.collides2DSphere(other)
+	}
+
 	/*Rect formula:
 		x:	m
 		y:	q
@@ -135,36 +186,74 @@ export class CollisionBox{
 
 	}
 
-	private static checkRaycast(p0: TSM.vec2, p1: TSM.vec2, q0: TSM.vec2, q1: TSM.vec2){
-
-	}
-
-	raycastCollides2D(position: TSM.vec3, direction: TSM.vec3): TSM.vec3 | false{
+	raycastCollides2D(position: TSM.vec2, direction: TSM.vec2): TSM.vec3 | false{
 		let myRotationMatrix = new TSM.mat2()
 		myRotationMatrix.rotate(this.transform.orientation.y,)
-		let distance = TSM.vec3.distance(position, this.transform.position)
-		let end = direction.copy().multiply(new TSM.vec3([distance, distance, distance]))
-		end.add(position)
-
-		let p0 = new TSM.vec2([position.x, position.z])
-		let p1 = new TSM.vec2([end.x, end.z])
 
 		let myVertexXMZP = new TSM.vec2([this.transform.position.x - (0.5 * this.transform.scale.x), this.transform.position.z + (0.5 * this.transform.scale.z)]).multiplyMat2(myRotationMatrix)
 		let	myVertexXPZP = new TSM.vec2([this.transform.position.x + (0.5 * this.transform.scale.x), this.transform.position.z + (0.5 * this.transform.scale.z)]).multiplyMat2(myRotationMatrix)
 		let myVertexXMZM = new TSM.vec2([this.transform.position.x - (0.5 * this.transform.scale.x), this.transform.position.z - (0.5 * this.transform.scale.z)]).multiplyMat2(myRotationMatrix)
 		let myVertexXPZM = new TSM.vec2([this.transform.position.x + (0.5 * this.transform.scale.x), this.transform.position.z - (0.5 * this.transform.scale.z)]).multiplyMat2(myRotationMatrix)
 
-		return false
+		let vertices: TSM.vec2[] = [
+			myVertexXMZM,
+			myVertexXMZP,
+			myVertexXPZP,
+			myVertexXPZM
+		]
+
+		let distance = 0
+
+		for(var i = 0; i < 4; i++){
+			let dist = TSM.vec2.distance(vertices[i], position)
+			if(dist > distance)
+				distance = dist
+		}
+
+		let end = direction.copy().multiply(new TSM.vec2([distance, distance]))
+		end.add(position)
+
+		let directionZP = myVertexXMZP.copy().subtract(myVertexXPZP).normalize();
+		let directionXM = myVertexXMZM.copy().subtract(myVertexXMZP).normalize();
+		let rotMats : TSM.mat2[] = [
+			new TSM.mat2([directionZP.x, -directionZP.y, directionZP.y, directionZP.x]),
+			new TSM.mat2([directionXM.x, -directionXM.y, directionXM.y, directionXM.x]),
+			new TSM.mat2([direction.x, -direction.y, direction.y, direction.x])
+		]
+
+		for(var i = 0; i < rotMats.length; i++){
+			let mat = rotMats[i];
+			let p_pos = position.copy().multiplyMat2(mat)
+			let p_end = end.copy().multiplyMat2(mat)
+	
+			let p_maxX = Math.max(p_pos.x, p_end.x)
+			let p_minX = Math.min(p_pos.x, p_end.x)
+
+			let p_myVertexXMZP = myVertexXMZP.copy().multiplyMat2(mat)
+			let p_myVertexXPZP = myVertexXPZP.copy().multiplyMat2(mat)
+			let p_myVertexXMZM = myVertexXMZM.copy().multiplyMat2(mat)
+			let p_myVertexXPZM = myVertexXPZM.copy().multiplyMat2(mat)
+
+			let my_minX = Math.min(p_myVertexXMZM.x, p_myVertexXPZP.x, p_myVertexXMZM.x, p_myVertexXPZM.x)
+			let my_maxX = Math.max(p_myVertexXMZM.x, p_myVertexXPZP.x, p_myVertexXMZM.x, p_myVertexXPZM.x)
+			
+			if(my_maxX < p_minX)
+				return false
+			if(my_minX > p_maxX)
+				return false
+		}
+		
+		
 	}
 
 	static runTest(){
 		let b1: CollisionBox = new CollisionBox()
 		b1.transform.position = new TSM.vec3([0, 0, 0])
-		b1.transform.orientation = new TSM.vec3([0, Math.PI / 2, 0])
+		b1.transform.orientation = new TSM.vec3([0, Math.PI / 4, 0])
 		b1.transform.scale = new TSM.vec3([1, 1, 1])
 
 		let b2: CollisionBox = new CollisionBox()
-		b2.transform.position = new TSM.vec3([1.5, 0, 0])
+		b2.transform.position = new TSM.vec3([1, 0, 0])
 		b2.transform.orientation = new TSM.vec3([0, 0, 0])
 		b2.transform.scale = new TSM.vec3([1, 1, 1])
 

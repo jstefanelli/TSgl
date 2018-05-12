@@ -330,7 +330,7 @@ export class PhongShader extends Shader {
 	protected specularMapEnableLoc: WebGLUniformLocation
 	protected alphaLoc: WebGLUniformLocation
 	protected shininessLoc: WebGLUniformLocation
-	public static readonly pointLightNumber: number = 12
+	public static readonly pointLightNumber: number = 16
 	protected dirLightLocs: DirLightLocations = new DirLightLocations()
 	protected pointLightLocs: PointLightLocations[]
 	protected pointLightsNumLoc: WebGLUniformLocation
@@ -356,6 +356,37 @@ export class PhongShader extends Shader {
 	varying vec2 texCoord;\
 	varying vec3 position;\
 	varying mat3 TBN;\
+	\
+	\
+	mat3 transpose(mat3 m){\
+		vec3 m0 = m[0];\
+		vec3 m1 = m[1];\
+		vec3 m2 = m[2];\
+		\
+		return mat3(m0.x, m1.x, m2.x,\
+			m0.y, m1.y, m2.y,\
+			m0.z, m1.z, m2.z);\
+	}\
+	\
+	mat4 transpose(mat4 m){\
+		vec4 m0 = m[0];\
+		vec4 m1 = m[1];\
+		vec4 m2 = m[2];\
+		vec4 m3 = m[3];\
+		\
+		return mat4(m0.x, m1.x, m2.x, m3.x,\
+			m0.y, m1.y, m2.y, m3.y,\
+			m0.z, m1.z, m2.z, m3.z,\
+			m0.w, m1.w, m2.w, m3.w);\
+	}\
+	\
+	mat2 transpose(mat2 m){\
+		vec2 m0 = m[0];\
+		vec2 m1 = m[1];\
+		\
+		return mat2(m0.x, m1.x,\
+			m0.y, m1.y);\
+	}\
 	\
 	void main(){\
 		\
@@ -410,7 +441,7 @@ export class PhongShader extends Shader {
 	\n\
 	uniform Material mat;\n\
 	\n\
-	const int MAX_POINT_LIGHTS = 12;\n\
+	const int MAX_POINT_LIGHTS = 16;\n\
 	uniform DirLight dirLight;\n\
 	uniform PointLight pointLights[MAX_POINT_LIGHTS];\n\
 	uniform int pointLightsNum;\n\

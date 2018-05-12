@@ -27,9 +27,9 @@ export class Scene{
 		this.context = context
 		this.root = new Hierarchy("root", this, this.context, Transform.identityTransform)
 		this._activeCamera = new Camera();
-		(this.lights[0] as DirectionalLight).direction = new TSM.vec3([0, -1, 0.5]);
-		(this.lights[0] as DirectionalLight).factors = new TSM.vec3([1, 0, 0.5])
-		let l = new PointLight()
+		(this.lights[0] as DirectionalLight).direction = new TSM.vec3([0, -0.5, 0.5]).normalize();
+		(this.lights[0] as DirectionalLight).factors = new TSM.vec3([1, 1, 1])
+		/*let l = new PointLight()
 		l.position = new TSM.vec3([0.0, -0.15, 0])
 		l.funcFactors = new TSM.vec3([1.0, 1.7, 2.2])
 		let l2 = new PointLight()
@@ -40,7 +40,7 @@ export class Scene{
 		l3.funcFactors = new TSM.vec3([1.0, 1.7, 2.2])
 		this.lights.push(l)
 		this.lights.push(l2)
-		this.lights.push(l3)
+		this.lights.push(l3)*/
 	}
 
 	private static getDistance(p1: TSM.vec3, p2: TSM.vec3) : number{
