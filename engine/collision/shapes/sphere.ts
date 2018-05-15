@@ -1,11 +1,12 @@
 import { TSM } from "../../tsm"
 import { Transform } from "../../wrappers/world"
-import { CollisionWorld } from "../collisionWorld";
+import { CollisionWorld, Collider } from "../collisionWorld";
 import { CollisionBox } from "./box"
 import { GLStatus, TSglContext, Buffer, BufferLayout } from "../../wrappers/gl";
 import { Light } from "../../wrappers/light";
+import { Line2D, LineType2D } from "../support/math";
 
-export class CollisionSphere{
+export class CollisionSphere implements Collider{
 	public static staticLoaded: boolean = false
 	public static vertBuffer: Buffer = null
 	public static indexBuffer: Buffer = null
@@ -55,8 +56,8 @@ export class CollisionSphere{
 
 	transform: Transform = null
 	isStatic: boolean = false
-	force: TSM.vec2 = new TSM.vec2([0, 0])
-	velocity: TSM.vec2 = new TSM.vec2([0, 0])
+	force: TSM.vec3 = new TSM.vec3([0, 0])
+	velocity: TSM.vec3 = new TSM.vec3([0, 0])
 	mass: number = 1
 
 	public constructor(){
@@ -75,20 +76,31 @@ export class CollisionSphere{
 		}
 	}
 
-	/*Rect formula:
-		x:	m
-		y:	q
-		z:	0: y = mx + q
-			1: x = m
-	*/
-
-	private static checkRaycast(p0: TSM.vec2, p1: TSM.vec2, q0: TSM.vec2, q1: TSM.vec2){
-		//TODO: Implement this
-	}
-
 	raycastCollides2D(position: TSM.vec2, direction: TSM.vec2): TSM.vec2 | false{
-		//TODO: Implement this
-		return false;
+		let p2 = direction.copy().add(position)
+
+		let rayLine = new Line2D(position, p2)
+		
+		let angle = (rayLine.Type == LineType2D.X_MAJOR) ? Math.PI / 2 : Math.atan(rayLine.m)
+		let sinA = Math.sin(angle)
+		let cosA = Math.cos(angle)
+		let rotationMatrix = new TSM.mat2([cosA, -sinA, sinA, cosA])
+		let center = new TSM.vec2([this.transform.position.x, this.transform.position.z]).multiplyMat2(rotationMatrix)
+		
+		let distance = TSM.vec2.distance(center, new TSM.vec2([center.x, 0]))
+		
+		p2.multiplyMat2(rotationMatrix)
+		let p1 = position.copy().multiplyMat2(rotationMatrix)
+		p2.subtract(p1)
+		center.subtract(p1)
+		if(center.x * p2.x < 0)
+			return false
+		
+		if(distance > this.transform.scale.x)
+			return false
+		
+		//TODO: Get actual collision point
+		return new TSM.vec2([this.transform.position.x, this.transform.position.z]);
 	}
 
 }

@@ -1,12 +1,12 @@
 import { TSM } from "../../tsm"
 import { Transform } from "../../wrappers/world"
-import { CollisionWorld } from "../collisionWorld";
+import { CollisionWorld, Collider } from "../collisionWorld";
 import { CollisionSphere} from "./sphere"
 import { GLStatus, TSglContext, Buffer, BufferLayout } from "../../wrappers/gl";
 import { Light } from "../../wrappers/light";
 import { Line2D, Segment2D } from "../support/math"
 
-export class CollisionBox{
+export class CollisionBox implements Collider{
 	public static staticLoaded: boolean = false
 	public static vertBuffer: Buffer = null
 	public static indexBuffer: Buffer = null
@@ -55,8 +55,8 @@ export class CollisionBox{
 
 	transform: Transform = null
 	isStatic: boolean = false
-	force: TSM.vec2 = new TSM.vec2([0, 0])
-	velocity: TSM.vec2 = new TSM.vec2([0, 0])
+	force: TSM.vec3 = new TSM.vec3([0, 0])
+	velocity: TSM.vec3 = new TSM.vec3([0, 0])
 	mass: number = 1
 
 	public constructor(){
