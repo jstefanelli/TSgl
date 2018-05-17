@@ -5,53 +5,156 @@ import { CollisionBox } from "./box"
 import { GLStatus, TSglContext, Buffer, BufferLayout } from "../../wrappers/gl";
 import { Light } from "../../wrappers/light";
 import { Line2D, LineType2D } from "../support/math";
+import { Material } from "../../wrappers/material";
+import { IResourceUser, IResource, ResourceType, MeshProtocol } from "../../resourceManager";
+import { Mesh, MeshPart, MeshPartInstance, MeshInstance } from "../../wrappers/mesh";
 
 export class CollisionSphere implements Collider{
 	public static staticLoaded: boolean = false
 	public static vertBuffer: Buffer = null
-	public static indexBuffer: Buffer = null
+	public static normalBuffer: Buffer = null
+	public static texCoordBuffer : Buffer = null
+	//public static indexBuffer: Buffer = null
+	private static meshPartArray: Array<MeshPart> = null
 
 	public static staticLoad(e: TSglContext){
-		//TODO: Implement this
-		/*if(this.staticLoaded)
+		
+		if(this.staticLoaded)
 			return
 
 		let vertices = [
-			-0.5, -0.5, 0.5,
-			0.5, -0.5, 0.5,
-			-0.5, 0.5, 0.5,
-			0.5, 0.5, 0.5,
+			0, 0, -1,
+			Math.cos(Math.PI / 3), 0, -Math.sin(Math.PI / 3),
+			
+			Math.cos(Math.PI / 3), 0, -Math.sin(Math.PI / 3),
+			Math.cos(Math.PI / 6), 0, -Math.sin(Math.PI / 6),
+			
+			Math.cos(Math.PI / 6), 0, -Math.sin(Math.PI / 6),
+			1, 0, 0,
 
-			-0.5, -0.5, -0.5,
-			0.5, -0.5, -0.5,
-			-0.5, 0.5, -0.5,
-			0.5, 0.5, -0.5,
+			1, 0, 0,
+			Math.cos(Math.PI / 6), 0, Math.sin(Math.PI / 6),
+
+			Math.cos(Math.PI / 6), 0, Math.sin(Math.PI / 6),
+			Math.cos(Math.PI / 3), 0, Math.sin(Math.PI / 3),
+
+			Math.cos(Math.PI / 3), 0, Math.sin(Math.PI / 3),
+			0, 0, 1,
+
+			0, 0, 1,
+			-Math.cos(Math.PI / 3), 0, Math.sin(Math.PI / 3),
+
+			-Math.cos(Math.PI / 3), 0, Math.sin(Math.PI / 3),
+			-Math.cos(Math.PI / 6), 0, Math.sin(Math.PI / 6),
+
+			-Math.cos(Math.PI / 6), 0, Math.sin(Math.PI / 6),
+			-1, 0, 0,
+
+			-1, 0, 0,
+			-Math.cos(Math.PI / 6), 0, -Math.sin(Math.PI / 6),
+
+			-Math.cos(Math.PI / 6), 0, -Math.sin(Math.PI / 6),
+			-Math.cos(Math.PI / 3), 0, -Math.sin(Math.PI / 3),
+
+			-Math.cos(Math.PI / 3), 0, -Math.sin(Math.PI / 3),
+			0, 0, -1,
 		]
 
-		let indices = [
-			0, 1,
-			1, 2,
-			2, 0,
+		let normals = [
+			0, 1, 0,
+			0, 1, 0,
 
-			2, 3,
-			3, 1,
+			0, 1, 0,
+			0, 1, 0,
 
-			0, 5,
-			5, 4,
-			4, 0,
-			1, 5,
+			0, 1, 0,
+			0, 1, 0,
 
-			6, 4,
-			6, 5,
-			5, 7,
-			6, 7,
+			0, 1, 0,
+			0, 1, 0,
 
-			7, 3,
-			7, 1
+			0, 1, 0,
+			0, 1, 0,
+
+			0, 1, 0,
+			0, 1, 0,
+
+			0, 1, 0,
+			0, 1, 0,
+
+			0, 1, 0,
+			0, 1, 0,
+
+			0, 1, 0,
+			0, 1, 0,
+
+			0, 1, 0,
+			0, 1, 0,
+
+			0, 1, 0,
+			0, 1, 0
 		]
+
+		let uvs = [
+			0, 0,
+			0, 0,
+
+			0, 0,
+			0, 0,
+
+			0, 0,
+			0, 0,
+
+			0, 0,
+			0, 0,
+
+			0, 0,
+			0, 0,
+
+			0, 0,
+			0, 0,
+
+			0, 0,
+			0, 0,
+
+			0, 0,
+			0, 0,
+
+			0, 0,
+			0, 0,
+
+			0, 0,
+			0, 0,
+
+			0, 0,
+			0, 0,
+		]
+
+		/* let indices = [
+			0, 12, 1, 
+			1, 12, 2,
+			2, 12, 3, 
+			3, 12, 4, 
+			4, 12, 5, 
+			5, 12, 6, 
+			6, 12, 7, 
+			7, 12, 8, 
+			8, 12, 9, 
+			9, 12, 10, 
+			10, 12, 11, 
+			11, 12, 0
+		]*/
+
+		if((vertices.length / 3 != normals.length / 3) || (vertices.length / 3 != uvs.length / 2))
+			throw new Error("Something went wrong in CollisionSphere.staticLoad")
 
 		this.vertBuffer = new Buffer(vertices, BufferLayout.defaultVertexLayout(e), e)
-		this.indexBuffer = new Buffer(indices, BufferLayout.defaultIndexLayout(e), e)*/
+		this.normalBuffer = new Buffer(normals, BufferLayout.defaultNormalLayout(e), e)
+		this.texCoordBuffer = new Buffer(uvs, BufferLayout.defaultTexCoordLayout(e), e)
+		e.manager.registerMaterial("circleDebugMaterial", new Material([], [], [new TSM.vec4([0, 1, 0, 1])], "basic", e))
+		this.meshPartArray = [ new MeshPart(24, 0) ]
+		this.staticLoaded = true
+		/*this.indexBuffer = new Buffer(indices, BufferLayout.defaultIndexLayout(e), e)*/
 	}
 
 	transform: Transform = null
@@ -60,9 +163,39 @@ export class CollisionSphere implements Collider{
 	velocity: TSM.vec3 = new TSM.vec3([0, 0])
 	mass: number = 1
 
-	public constructor(){
+	private meshInstance: MeshInstance = null
+	private _loaded = false
+	private e: TSglContext
+
+	public constructor(e: TSglContext){
 		this.transform = Transform.identityTransform
 		this.isStatic = false
+		this.e = e
+	}
+
+	public load(){
+		if(this._loaded)
+			return
+		if(!CollisionSphere.staticLoaded)
+			CollisionSphere.staticLoad(this.e)
+		this.meshInstance = new MeshInstance(this.e, "circleDebugMesh", MeshProtocol.RAW, ["circleDebugMaterial"], [CollisionSphere.vertBuffer, CollisionSphere.normalBuffer, CollisionSphere.texCoordBuffer, CollisionSphere.meshPartArray, this.e.gl.LINES])
+		this._loaded = true
+	}
+
+	public draw(status: GLStatus){
+		if(!this._loaded)
+			this.load()
+		status.applyTransformToModel(this.transform)
+		this.meshInstance.draw(status, [])
+		status.revertLastModelTransform()
+	}
+
+	public unload(){
+		if(!this._loaded)
+			return
+		this.meshInstance.unload()
+		this.meshInstance = null
+		this._loaded = false
 	}
 
 	collides2D(other: CollisionBox | CollisionSphere) : boolean{

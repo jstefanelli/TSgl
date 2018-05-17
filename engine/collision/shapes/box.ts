@@ -4,53 +4,82 @@ import { CollisionWorld, Collider } from "../collisionWorld";
 import { CollisionSphere} from "./sphere"
 import { GLStatus, TSglContext, Buffer, BufferLayout } from "../../wrappers/gl";
 import { Light } from "../../wrappers/light";
-import { Line2D, Segment2D } from "../support/math"
+import { Line2D, Segment2D, LineType2D } from "../support/math"
+import { Material } from "../../wrappers/material";
+import { MeshPart, MeshInstance } from "../../wrappers/mesh";
+import { MeshProtocol } from "../../resourceManager";
 
 export class CollisionBox implements Collider{
 	public static staticLoaded: boolean = false
 	public static vertBuffer: Buffer = null
-	public static indexBuffer: Buffer = null
+	public static normalBuffer: Buffer = null
+	public static texCoordBuffer: Buffer = null
+	private static drawMode: number = null
+	private static meshPartArray: MeshPart[] = null
+	
 
 	public static staticLoad(e: TSglContext){
 		if(this.staticLoaded)
 			return
 
 		let vertices = [
-			-0.5, -0.5, 0.5,
-			0.5, -0.5, 0.5,
-			-0.5, 0.5, 0.5,
-			0.5, 0.5, 0.5,
+			-0.5, 0, 0.5,
+			0.5, 0, 0.5,
 
-			-0.5, -0.5, -0.5,
-			0.5, -0.5, -0.5,
-			-0.5, 0.5, -0.5,
-			0.5, 0.5, -0.5,
+			0.5, 0, 0.5,
+			-0.5, 0, -0.5,
+
+			-0.5, 0, -0.5,
+			-0.5, 0, 0.5,
+
+			-0.5, 0, -0.5,
+			0.5, 0, -0.5,
+
+			0.5, 0, -0.5,
+			0.5, 0, 0.5
 		]
 
-		let indices = [
-			0, 1,
-			1, 2,
-			2, 0,
+		let normals = [
+			0, 1, 0,
+			0, 1, 0,
 
-			2, 3,
-			3, 1,
+			0, 1, 0,
+			0, 1, 0,
+			
+			0, 1, 0,
+			0, 1, 0,
+			
+			0, 1, 0,
+			0, 1, 0,
+			
+			0, 1, 0,
+			0, 1, 0,
+		]
 
-			0, 5,
-			5, 4,
-			4, 0,
-			1, 5,
-
-			6, 4,
-			6, 5,
-			5, 7,
-			6, 7,
-
-			7, 3,
-			7, 1
+		let texCoords = [
+			0, 0,
+			0, 0,
+			
+			0, 0,
+			0, 0,
+			
+			0, 0,
+			0, 0,
+			
+			0, 0,
+			0, 0,
+			
+			0, 0,
+			0, 0,
 		]
 
 		this.vertBuffer = new Buffer(vertices, BufferLayout.defaultVertexLayout(e), e)
-		this.indexBuffer = new Buffer(indices, BufferLayout.defaultIndexLayout(e), e)
+		this.normalBuffer = new Buffer(normals, BufferLayout.defaultNormalLayout(e), e)
+		this.texCoordBuffer = new Buffer(texCoords, BufferLayout.defaultTexCoordLayout(e), e)
+		e.manager.registerMaterial("squareDebugMaterial", new Material([], [], [new TSM.vec4([1, 0, 0, 1])], "basic", e))
+		this.meshPartArray =[ new MeshPart(10, 0) ]
+		this.drawMode = e.gl.LINES
+		this.staticLoaded = true
 	}
 
 	transform: Transform = null
@@ -59,9 +88,43 @@ export class CollisionBox implements Collider{
 	velocity: TSM.vec3 = new TSM.vec3([0, 0])
 	mass: number = 1
 
-	public constructor(){
+	private e: TSglContext
+	private meshInstance: MeshInstance
+	private _loaded: boolean = false
+
+	public constructor(e: TSglContext){
 		this.transform = Transform.identityTransform
 		this.isStatic = false
+		this.e = e
+	}
+
+	get loaded(): boolean{
+		return this._loaded
+	}
+
+	public load(){
+		if(this._loaded)
+			return
+		if(!CollisionBox.staticLoaded)
+			CollisionBox.staticLoad(this.e)
+		this.meshInstance = new MeshInstance(this.e, "squareDebugMesh", MeshProtocol.RAW, ["squareDebugMaterial"], [CollisionBox.vertBuffer, CollisionBox.normalBuffer, CollisionBox.texCoordBuffer, CollisionBox.meshPartArray, CollisionBox.drawMode])
+		this._loaded = true
+	}
+
+	public draw(status: GLStatus){
+		if(!this._loaded)
+			this.load()
+		status.applyTransformToModel(this.transform)
+		this.meshInstance.draw(status, [])
+		status.revertLastModelTransform()
+	}
+
+	public unload(){
+		if(!this._loaded)
+			return
+		this.meshInstance.unload()
+		this.meshInstance = null
+		this._loaded = false
 	}
 
 	private collides2DBox(other: CollisionBox) : boolean{
@@ -156,10 +219,10 @@ export class CollisionBox implements Collider{
 			let i2 = (i == 3) ? 0 : i + 1
 			let dist = this.distanceFromSegment(vertices[i], vertices[i2], other_center)
 			if(dist < min)
-				min = dist;
+				min = dist
 		}
 
-		return min <= other.transform.scale.x;
+		return min <= other.transform.scale.x
 	}
 
 	collides2D(other: CollisionBox | CollisionSphere) : boolean{
@@ -205,17 +268,34 @@ export class CollisionBox implements Collider{
 		})
 		if(point == false)
 			return false
-		if(point instanceof TSM.vec2)
+		if(point instanceof TSM.vec2){
+			
+			let angle = (line.Type == LineType2D.X_MAJOR) ? Math.PI / 2 : Math.atan(line.m)
+			let cosA = Math.cos(angle)
+			let sinA = Math.sin(angle)
+
+			let negRotationMatrix = new TSM.mat2([cosA, -sinA, sinA, cosA])
+			
+			p2.multiplyMat2(negRotationMatrix)
+			let p1 = position.copy().multiplyMat2(negRotationMatrix)
+			let p3 = point.copy().multiplyMat2(negRotationMatrix)
+			
+			p2.subtract(p1)
+			p3.subtract(p1)
+			
+			if((p3.x * p2.x) < 0)
+				return false
 			return new TSM.vec3([point.x, 0, point.y])
+		}
 	}
 
 	static runTest(){
-		let b1: CollisionBox = new CollisionBox()
+		let b1: CollisionBox = new CollisionBox(null)
 		b1.transform.position = new TSM.vec3([0, 0, 0])
 		b1.transform.orientation = new TSM.vec3([0, 0, 0])
 		b1.transform.scale = new TSM.vec3([1, 1, 1])
 
-		let b2: CollisionBox = new CollisionBox()
+		let b2: CollisionBox = new CollisionBox(null)
 		b2.transform.position = new TSM.vec3([1, 0, 0])
 		b2.transform.orientation = new TSM.vec3([0, 0, 0])
 		b2.transform.scale = new TSM.vec3([1, 1, 1])
@@ -224,7 +304,7 @@ export class CollisionBox implements Collider{
 		console.log(b1.collides2D(b2))
 
 		let position = new TSM.vec2([0, -3])
-		let direction = new TSM.vec2([0, 1])
+		let direction = new TSM.vec2([0, -1])
 
 		let raycast = b1.raycastCollides2D(position, direction)
 		console.log("Raycast test result: ")

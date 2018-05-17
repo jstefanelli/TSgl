@@ -24,6 +24,7 @@ export class Mesh implements IResource, ISyncLoadedObject{
 	protected _biTangents: Buffer
 	protected _parts: Array<MeshPart>
 	protected _loaded: boolean
+	protected _drawMode: number
 	protected ctx: TSglContext
 
 	get vertices(): Buffer{
@@ -50,13 +51,21 @@ export class Mesh implements IResource, ISyncLoadedObject{
 		return ResourceType.MESH
 	}
 
-	constructor(vertices: Buffer, normals: Buffer, tex: Buffer, parts: Array<MeshPart>, context: TSglContext){
+	get drawMode(): number{
+		return this._drawMode
+	}
+
+	constructor(vertices: Buffer, normals: Buffer, tex: Buffer, parts: Array<MeshPart>, context: TSglContext, drawMode: number | null = null){
 		this._vertices = vertices
 		this._normals = normals
 		this._texCoords = tex
 		this._parts = parts
 		this.ctx = context
-	}
+		if(drawMode == null)
+			this._drawMode = this.ctx.gl.TRIANGLES
+		else
+			this._drawMode = drawMode
+	}	
 
 	load(){
 		this._vertices.load()
@@ -66,79 +75,85 @@ export class Mesh implements IResource, ISyncLoadedObject{
 		let aTangents = new Array<number>() 
 		let aBiTangents = new Array<number>()
 
-		for(var i = 0; i < this._vertices.content.length / 3; i+= 3){
+		if(this._drawMode == this.ctx.gl.TRIANGLES){
+			for(var i = 0; i < this._vertices.content.length / 3; i+= 3){
 
-			let vId = i * 3;
-			let uvId = i * 2;
+				let vId = i * 3;
+				let uvId = i * 2;
 
-			let v0 = new TSM.vec3(this._vertices.content.slice(vId, vId+3))
-			let v1 = new TSM.vec3(this._vertices.content.slice(vId+3, vId+6))
-			let v2 = new TSM.vec3(this._vertices.content.slice(vId+6, vId+9))
+				let v0 = new TSM.vec3(this._vertices.content.slice(vId, vId+3))
+				let v1 = new TSM.vec3(this._vertices.content.slice(vId+3, vId+6))
+				let v2 = new TSM.vec3(this._vertices.content.slice(vId+6, vId+9))
 
-			let uv0 = new TSM.vec2(this._texCoords.content.slice(uvId, uvId + 2))
-			let uv1 = new TSM.vec2(this._texCoords.content.slice(uvId+2, uvId+4))
-			let uv2 = new TSM.vec2(this._texCoords.content.slice(uvId+4, uvId+6))
+				let uv0 = new TSM.vec2(this._texCoords.content.slice(uvId, uvId + 2))
+				let uv1 = new TSM.vec2(this._texCoords.content.slice(uvId+2, uvId+4))
+				let uv2 = new TSM.vec2(this._texCoords.content.slice(uvId+4, uvId+6))
 
-			//DeltaPos1/2: Directions of the sides of the triangle (in modelSpace), not the position of the points (in modelSpace)
-			let deltaPos1 = v1.subtract(v0)
-			let deltaPos2 = v2.subtract(v0)
+				//DeltaPos1/2: Directions of the sides of the triangle (in modelSpace), not the position of the points (in modelSpace)
+				let deltaPos1 = v1.subtract(v0)
+				let deltaPos2 = v2.subtract(v0)
 
-			//DeltaUV1/2: Direction of the UV "side" along the triangle sides. In Tangent space
-			let deltaUV1 = uv1.subtract(uv0)
-			let deltaUV2 = uv2.subtract(uv0)
+				//DeltaUV1/2: Direction of the UV "side" along the triangle sides. In Tangent space
+				let deltaUV1 = uv1.subtract(uv0)
+				let deltaUV2 = uv2.subtract(uv0)
 
-			// Solving for: [
-			// 	Tangent vector: T,
-			// 	Bitangent vector: B
-			// ]
-			//
-			// deltaPos1 = (deltaUV1.x * T) + (deltaUV1.y * B) => deltaPos1.x = (deltaUV1.x * T.x) + (deltaUV1.y * B.x) [same for y and z]
-			// deltaPos2 = (deltaUV2.x * T) + (deltaUV2.y * B) => deltaPos2.x = (deltaUV2.x * T.x) + (deltaUV2.y * B.x) [same for y and z]
-			//
-			// This can be described as a matrix multiplication:  
-			// 
-			// [ deltaPos1.x, deltaPos1.y, deltaPos1.z ] = [ deltaUV1.x, deltaUV1.y ] [ T.x, T.y, T.z ]
-			// [ deltaPos2.x, deltaPos2.y, deltaPos2.z ] = [ deltaUV2.x, deltaUV2.y ] [ B,x, B.y, B.z ]
-			//
-			// With inverted UV Matrix (2nd matrix) we isolate T and B on one side of equation and solve for them
-			//
-			// [ deltaUV1.x, deltaUV1.y ] ^ -1 [ deltaPos1.x, deltaPos1.y, deltaPos1.z ] = [ T.x, T.y, T.z ]
-			// [ deltaUV2.x, deltaUV2.y ]      [ deltaPos2.x, deltaPos2.y, deltaPos2.z ] = [ B,x, B.y, B.z ]
-			//
-			//
-			// Inverted UV matrix: 
-			//		1 / (deltaUV1.x * deltaUV2.y) - (deltaUV2.x * deltaUV1.y) * [ deltaUV2.y, -deltaUV1.y ]
-			//																	[ -deltaUV2.x, deltaUV1.x ]
-			//
-			// Example of calculation of T.x with this formulta:
-			//
-			// F = 1 / (deltaUV1.x * deltaUV2.y) - (deltaUV2.x * deltaUV1.y)
-			//
-			//	T.x = f * [(deltaUV2.y * deltaPos1.x) - (deltaUV1.y * deltaPos2.x)]
+				// Solving for: [
+				// 	Tangent vector: T,
+				// 	Bitangent vector: B
+				// ]
+				//
+				// deltaPos1 = (deltaUV1.x * T) + (deltaUV1.y * B) => deltaPos1.x = (deltaUV1.x * T.x) + (deltaUV1.y * B.x) [same for y and z]
+				// deltaPos2 = (deltaUV2.x * T) + (deltaUV2.y * B) => deltaPos2.x = (deltaUV2.x * T.x) + (deltaUV2.y * B.x) [same for y and z]
+				//
+				// This can be described as a matrix multiplication:  
+				// 
+				// [ deltaPos1.x, deltaPos1.y, deltaPos1.z ] = [ deltaUV1.x, deltaUV1.y ] [ T.x, T.y, T.z ]
+				// [ deltaPos2.x, deltaPos2.y, deltaPos2.z ] = [ deltaUV2.x, deltaUV2.y ] [ B,x, B.y, B.z ]
+				//
+				// With inverted UV Matrix (2nd matrix) we isolate T and B on one side of equation and solve for them
+				//
+				// [ deltaUV1.x, deltaUV1.y ] ^ -1 [ deltaPos1.x, deltaPos1.y, deltaPos1.z ] = [ T.x, T.y, T.z ]
+				// [ deltaUV2.x, deltaUV2.y ]      [ deltaPos2.x, deltaPos2.y, deltaPos2.z ] = [ B,x, B.y, B.z ]
+				//
+				//
+				// Inverted UV matrix: 
+				//		1 / (deltaUV1.x * deltaUV2.y) - (deltaUV2.x * deltaUV1.y) * [ deltaUV2.y, -deltaUV1.y ]
+				//																	[ -deltaUV2.x, deltaUV1.x ]
+				//
+				// Example of calculation of T.x with this formulta:
+				//
+				// F = 1 / (deltaUV1.x * deltaUV2.y) - (deltaUV2.x * deltaUV1.y)
+				//
+				//	T.x = f * [(deltaUV2.y * deltaPos1.x) - (deltaUV1.y * deltaPos2.x)]
 
-			let f = 1.0 / (deltaUV1.x * deltaUV2.y  - deltaUV1.y * deltaUV2.x )
+				let f = 1.0 / (deltaUV1.x * deltaUV2.y  - deltaUV1.y * deltaUV2.x )
 
-			let tangent = new TSM.vec3([0, 0, 0])
-			let bitangent = new TSM.vec3([0, 0, 0])
-			tangent.x = f * ((deltaUV2.y * deltaPos1.x) - (deltaUV1.y * deltaPos2.x))
-			tangent.y = f * ((deltaUV2.y * deltaPos1.y) - (deltaUV1.y * deltaPos2.y))
-			tangent.z = f * ((deltaUV2.y * deltaPos1.z) - (deltaUV1.y * deltaPos2.z))
-			tangent.normalize()
+				let tangent = new TSM.vec3([0, 0, 0])
+				let bitangent = new TSM.vec3([0, 0, 0])
+				tangent.x = f * ((deltaUV2.y * deltaPos1.x) - (deltaUV1.y * deltaPos2.x))
+				tangent.y = f * ((deltaUV2.y * deltaPos1.y) - (deltaUV1.y * deltaPos2.y))
+				tangent.z = f * ((deltaUV2.y * deltaPos1.z) - (deltaUV1.y * deltaPos2.z))
+				tangent.normalize()
 
-			bitangent.x = f * ((-deltaUV2.x * deltaPos1.x) + (deltaUV1.x * deltaPos2.x))
-			bitangent.y = f * ((-deltaUV2.x * deltaPos1.y) + (deltaUV1.x * deltaPos2.y))
-			bitangent.z = f * ((-deltaUV2.x * deltaPos1.z) + (deltaUV1.x * deltaPos2.z))
-			bitangent.normalize()
+				bitangent.x = f * ((-deltaUV2.x * deltaPos1.x) + (deltaUV1.x * deltaPos2.x))
+				bitangent.y = f * ((-deltaUV2.x * deltaPos1.y) + (deltaUV1.x * deltaPos2.y))
+				bitangent.z = f * ((-deltaUV2.x * deltaPos1.z) + (deltaUV1.x * deltaPos2.z))
+				bitangent.normalize()
 
-			aTangents.push(tangent.x, tangent.y, tangent.z)
-			aTangents.push(tangent.x, tangent.y, tangent.z)
-			aTangents.push(tangent.x, tangent.y, tangent.z)
+				aTangents.push(tangent.x, tangent.y, tangent.z)
+				aTangents.push(tangent.x, tangent.y, tangent.z)
+				aTangents.push(tangent.x, tangent.y, tangent.z)
 
-			aBiTangents.push(bitangent.x, bitangent.y, bitangent.z)
-			aBiTangents.push(bitangent.x, bitangent.y, bitangent.z)
-			aBiTangents.push(bitangent.x, bitangent.y, bitangent.z)
+				aBiTangents.push(bitangent.x, bitangent.y, bitangent.z)
+				aBiTangents.push(bitangent.x, bitangent.y, bitangent.z)
+				aBiTangents.push(bitangent.x, bitangent.y, bitangent.z)
+			}
+		
+		}else{
+			//Should I leave empty buffers?
+			aTangents.push(0, 0, 0)
+			aBiTangents.push(0, 0, 0)
 		}
-
 		this._tangents = new Buffer(aTangents, BufferLayout.defaultNormalLayout(this.ctx), this.ctx)
 		this._biTangents = new Buffer(aBiTangents, BufferLayout.defaultNormalLayout(this.ctx), this.ctx)
 		this._tangents.load()
@@ -221,6 +236,10 @@ export class MeshPartInstance implements IDrawable {
 		return this._baseMesh.biTangents
 	}
 
+	get drawMode(): number{
+		return this._baseMesh.drawMode
+	}
+
 	loaded: boolean = false
 }
 
@@ -235,14 +254,15 @@ export class MeshInstance implements IAsyncLoadedObject, IResourceUser {
 	protected mesh: Mesh
 	protected materials: Material[] = new Array<Material>()
 	protected cb: (object: IAsyncLoadedObject) => void
+	protected meshRaw: Array<any> = null
 
-	constructor(context: TSglContext, meshName: string, meshProtocol: MeshProtocol, material_names: Array<string>){
+	constructor(context: TSglContext, meshName: string, meshProtocol: MeshProtocol, material_names: Array<string>, meshRaw: Array<any> = null){
 		this.context = context
 		this.meshName = meshName
 		this.material_names = material_names
 		this.meshProtocol = meshProtocol
 		this.sections = new Array<Pair<boolean, MeshPartInstance>>()
-		
+		this.meshRaw = meshRaw
 	}
 
 	get loaded(): boolean{
@@ -261,7 +281,7 @@ export class MeshInstance implements IAsyncLoadedObject, IResourceUser {
 	loadAsync(cb: (object: IAsyncLoadedObject) => void){
 		this.cb = cb
 
-		this.context.manager.getMesh(this.meshName, this.meshProtocol, this)
+		this.context.manager.getMesh(this.meshName, this.meshProtocol, this, this.meshRaw)
 	}
 
 	unload() {

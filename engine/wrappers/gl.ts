@@ -261,6 +261,7 @@ export interface IDrawable{
 	readonly texCoords: Buffer
 	readonly tangents: Buffer
 	readonly bitangents: Buffer
+	readonly drawMode: number
 }
 
 export abstract class Shader implements IResource, ISyncLoadedObject{
@@ -632,7 +633,7 @@ export class PhongShader extends Shader {
 
 		gl.uniform1i(this.pointLightsNumLoc, pointLightNum)
 
-		gl.drawArrays(gl.TRIANGLES, section.offset, section.count)
+		gl.drawArrays(section.drawMode, section.offset, section.count)
 
 		gl.disableVertexAttribArray(this.bitangentLoc)
 		gl.disableVertexAttribArray(this.tangentLoc)
@@ -813,31 +814,9 @@ export class BasicShader extends Shader{
 		gl.uniform4f(this.colorLoc, color.x, color.y, color.z, color.w)
 		gl.uniformMatrix4fv(this.mvpLoc, false, status.mvp.all())
 
-		gl.drawArrays(gl.TRIANGLES, section.offset, section.count)
+		gl.drawArrays(section.drawMode, section.offset, section.count)
 
 		gl.disableVertexAttribArray(this.vertexLoc)
-	}
-
-	drawCollider(status: GLStatus, collider: CollisionBox): void{
-		let gl = this.e.gl
-
-		if(CollisionBox.staticLoaded)
-			CollisionBox.staticLoad(this.e)
-		
-		status.applyTransformToModel(collider.transform)
-
-		gl.useProgram(this.id)
-
-		gl.enableVertexAttribArray(this.vertexLoc)
-		CollisionBox.vertBuffer.bind(this.vertexLoc)
-		gl.uniform4f(this.colorLoc, BasicShader.coillisionBoxColor.x, BasicShader.coillisionBoxColor.y, BasicShader.coillisionBoxColor.z, BasicShader.coillisionBoxColor.w)
-		gl.uniformMatrix4fv(this.mvpLoc, false, status.mvp.all())
-
-		CollisionBox.indexBuffer.bindElement()
-		gl.drawElements(gl.LINES, 30, gl.UNSIGNED_SHORT, 0)
-
-		gl.disableVertexAttribArray(this.vertexLoc)
-
 	}
 
 	load(): void {

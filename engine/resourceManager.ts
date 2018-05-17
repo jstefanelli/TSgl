@@ -1,7 +1,7 @@
 import { Map } from "./map"
 import { Texture, Shader, Buffer, TSglContext, BasicShader, PhongShader } from "./wrappers/gl"
 import { Material } from "./wrappers/material";
-import { Mesh } from "./wrappers/mesh"
+import { Mesh, MeshPart } from "./wrappers/mesh"
 import { jmdLoader } from "./fileTypes/jmd"
 import { Pair} from "./pair"
 
@@ -180,6 +180,7 @@ export class ResourceManager{
 			switch(protocol){
 				case MeshProtocol.BUILT_IN:
 				case MeshProtocol.ANY:
+					console.log("Not implemented.")
 					return
 				case MeshProtocol.JMD:
 					let loader = new jmdLoader(name, this.e)
@@ -197,7 +198,11 @@ export class ResourceManager{
 					})
 					break
 				case MeshProtocol.RAW:
-					//TODO: Handle RAW mesh generation
+					let mesh = new Mesh(rawData[0] as Buffer, rawData[1] as Buffer, rawData[2] as Buffer, rawData[3] as MeshPart[], this.e, (rawData.length > 4) ? rawData[4] as number : null)
+					mesh.load()
+					let ref = new ReferenceHolder<Mesh>(mesh, ResourceType.MESH, name)
+					ref.addReference(user)
+					this.meshes.set(name, ref)
 					break
 				case MeshProtocol.OBJ:
 					//TODO: Handle OBJ mesh generation

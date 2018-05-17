@@ -2,6 +2,7 @@ import { TSM } from "../tsm"
 import { Map } from "../map"
 import { CollisionBox } from "./shapes/box"
 import { Transform } from "../wrappers/world";
+import { TSglContext, GLStatus } from "../wrappers/gl";
 
 export interface Collider{
 	transform: Transform 
@@ -9,6 +10,8 @@ export interface Collider{
 	force: TSM.vec3 
 	velocity: TSM.vec3
 	mass: number
+
+	draw(status: GLStatus) : void
 }
 
 export enum CollisionMode{
@@ -17,29 +20,29 @@ export enum CollisionMode{
 
 export class CollisionWorld{
 
-	private boxes: Map<string, Collider> = null
+	private colliders: Map<string, Collider> = null
 	private mode: CollisionMode = CollisionMode.COLLISION_2D
 
 	addCollider(key: string, box: Collider){
-		this.boxes.set(key, box)
+		this.colliders.set(key, box)
 	}
 
 	removeCollider(key: string){
-		if(this.boxes.has(key))
-			this.boxes.delete(key)
+		if(this.colliders.has(key))
+			this.colliders.delete(key)
 	}
 
 	getCollider(key: string) : Collider{
-		return this.boxes.get(key)
+		return this.colliders.get(key)
 	}
 
 	public constructor(){
-		this.boxes = new Map<string, Collider>()
+		this.colliders = new Map<string, Collider>()
 	}
 
 	public step(time: number){
 		if(this.mode = CollisionMode.COLLISION_2D){
-			this.boxes.values.forEach((b: Collider) => {
+			this.colliders.values.forEach((b: Collider) => {
 				if(b.isStatic)
 					return
 				//y = t + 1
@@ -48,8 +51,16 @@ export class CollisionWorld{
 				b.velocity = v_y.copy()
 				v_y.multiply(new TSM.vec3([time, time, time]))
 				let oldPosition = b.transform.position.copy()
-				b.transform.position.add(new TSM.vec3([v_y.x, 0, v_y.y]))
+				b.transform.position.add(new TSM.vec3([v_y.x, 0, v_y.z]))
+				b.force = new TSM.vec3([0, 0, 0])
 			})
 		}
+	}
+
+	public drawDebugWorld(status: GLStatus, e: TSglContext){
+		e.gl.lineWidth(3)
+		this.colliders.values.forEach((b: Collider) => {
+			b.draw(status)
+		})
 	}
 }
