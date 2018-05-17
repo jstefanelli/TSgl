@@ -12,6 +12,10 @@ export interface KeyboardCallback{
 	onKeyUp(key: number)
 	onKeyPress(key: number)
 }
+export interface SceneCallback{
+	onSceneLoaded(scene: Scene)
+	onSceneUnloaded(scene: Scene)
+}
 
 export class Engine implements TSglContext{
 	private glc: JQuery
@@ -24,6 +28,7 @@ export class Engine implements TSglContext{
 	private nextScene: Scene = null
 	private _manager: ResourceManager
 	private _keybCB: KeyboardCallback = null
+	private _sceneCB: SceneCallback = null
 
 	get manager() : ResourceManager{
 		return this._manager
@@ -100,6 +105,10 @@ export class Engine implements TSglContext{
 		this._gl.cullFace(this.gl.BACK)
 	}
 
+	public newDrawLayer(){
+		this._gl.clear(this._gl.DEPTH_BUFFER_BIT)
+	}
+
 	draw(){
 		
 		this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT)
@@ -115,13 +124,18 @@ export class Engine implements TSglContext{
 
 	gotoNextScene(next: Scene){
 		this.nextScene = next
-		if(this.currentScene != null)
+		if(this.currentScene != null){
 			this.currentScene.unload()
+			if(this._sceneCB != null)
+				this._sceneCB.onSceneUnloaded(this.currentScene)
+		}
 		this.currentScene = null
 		this.nextScene.loadAsync()
 	}
 
 	onSceneLoaded(next: Scene){
+		if(this._sceneCB != null)
+			this._sceneCB.onSceneLoaded(next)
 		this.currentScene = next
 	}
 
@@ -131,5 +145,13 @@ export class Engine implements TSglContext{
 
 	get keyboardCB() : KeyboardCallback{
 		return this._keybCB
+	}
+
+	set sceneCB(cb: SceneCallback){
+		this._sceneCB = cb
+	}
+
+	get sceneCB() : SceneCallback{
+		return this._sceneCB
 	}
 }

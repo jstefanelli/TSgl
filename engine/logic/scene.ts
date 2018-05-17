@@ -27,7 +27,7 @@ export class Scene{
 		this.context = context
 		this.root = new Hierarchy("root", this, this.context, Transform.identityTransform)
 		this._activeCamera = new Camera();
-		(this.lights[0] as DirectionalLight).direction = new TSM.vec3([0, -0.5, 0.5]).normalize();
+		(this.lights[0] as DirectionalLight).direction = new TSM.vec3([0, -0.5, -0.5]).normalize();
 		(this.lights[0] as DirectionalLight).factors = new TSM.vec3([1, 1, 1])
 		/*let l = new PointLight()
 		l.position = new TSM.vec3([0.0, -0.15, 0])
@@ -104,6 +104,10 @@ export class Scene{
 
 	get activeCamera(): Camera{
 		return this._activeCamera
+	}
+
+	get Lights() : Light[]{
+		return this.lights
 	}
 }
 
@@ -230,6 +234,7 @@ export class GameObject implements ILogicObject{
 	owner: Hierarchy
 	id: string
 	context: TSglContext
+	hidden: boolean = false
 
 	constructor(owner: Hierarchy, meshName: string, meshProtocol: MeshProtocol, materilaNames: string[], id: string, context: TSglContext){
 		this.owner = owner
@@ -244,6 +249,8 @@ export class GameObject implements ILogicObject{
 	}
 
 	draw(status: GLStatus, lights: Light[]){
+		if(this.hidden)
+			return
 		status.applyTransformToModel(this.transform)
 		this.meshInstance.draw(status, lights)
 		status.revertLastModelTransform()

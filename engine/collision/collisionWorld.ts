@@ -10,8 +10,10 @@ export interface Collider{
 	force: TSM.vec3 
 	velocity: TSM.vec3
 	mass: number
+	tags: string[]
 
 	draw(status: GLStatus) : void
+
 }
 
 export enum CollisionMode{
@@ -58,9 +60,8 @@ export class CollisionWorld{
 	}
 
 	public drawDebugWorld(status: GLStatus, e: TSglContext){
-		e.gl.lineWidth(3)
-		this.colliders.values.forEach((b: Collider) => {
-			b.draw(status)
+		this.colliders.forEach((key: string, value: Collider) => {
+			value.draw(status)
 		})
 	}
 }

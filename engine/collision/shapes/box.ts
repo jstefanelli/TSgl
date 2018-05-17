@@ -22,6 +22,8 @@ export class CollisionBox implements Collider{
 		if(this.staticLoaded)
 			return
 
+		console.log("[CollisionBox] StaticLoading...")
+		
 		let vertices = [
 			-0.5, 0, 0.5,
 			0.5, 0, 0.5,
@@ -87,6 +89,7 @@ export class CollisionBox implements Collider{
 	force: TSM.vec3 = new TSM.vec3([0, 0])
 	velocity: TSM.vec3 = new TSM.vec3([0, 0])
 	mass: number = 1
+	tags: string[] = new Array<string>()
 
 	private e: TSglContext
 	private meshInstance: MeshInstance
@@ -107,8 +110,11 @@ export class CollisionBox implements Collider{
 			return
 		if(!CollisionBox.staticLoaded)
 			CollisionBox.staticLoad(this.e)
+		console.log("[CollisionBox] Loading...")
 		this.meshInstance = new MeshInstance(this.e, "squareDebugMesh", MeshProtocol.RAW, ["squareDebugMaterial"], [CollisionBox.vertBuffer, CollisionBox.normalBuffer, CollisionBox.texCoordBuffer, CollisionBox.meshPartArray, CollisionBox.drawMode])
+		this.meshInstance.loadAsync(null)
 		this._loaded = true
+		console.log("[CollisionBox] Loaded")
 	}
 
 	public draw(status: GLStatus){

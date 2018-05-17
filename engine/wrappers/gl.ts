@@ -1050,7 +1050,7 @@ export class GLStatus{
 	}
 
 	revertLastModelTransform(){
-		this._modelMatrix = this.modelStack.pop()
+		this._modelMatrix = (this.modelStack.length > 0) ? this.modelStack.pop() : this._modelMatrix
 		this.updateBuiltIns()
 	}
 

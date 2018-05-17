@@ -151,6 +151,7 @@ export class Mesh implements IResource, ISyncLoadedObject{
 		
 		}else{
 			//Should I leave empty buffers?
+			console.log("[MESH] Generating NULL tangents and bitangents. (non-triangular render mode. Will cause issues with normal mapping)")
 			aTangents.push(0, 0, 0)
 			aBiTangents.push(0, 0, 0)
 		}
@@ -273,8 +274,9 @@ export class MeshInstance implements IAsyncLoadedObject, IResourceUser {
 		if(!this._loaded)
 			return
 		this.sections.forEach((section: Pair<boolean, MeshPartInstance>) => {
-			if(section.key)
+			if(section.key){
 				section.value.material.shader.value.draw(status, section.value, lights)
+			}
 		})
 	}
 
@@ -299,7 +301,8 @@ export class MeshInstance implements IAsyncLoadedObject, IResourceUser {
 				return
 		}
 		this._loaded = true
-		this.cb(this)
+		if(this.cb != null)
+			this.cb(this)
 	}
 
 	private genSections(){

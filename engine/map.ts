@@ -48,4 +48,10 @@ export class Map<key, value>{
 	get values(): Array<value>{
 		return this._values
 	}
+
+	forEach(cb: (key: key, value: value) => void){
+		this.keys.forEach((key: key) => {
+			cb(key, this.get(key))
+		})
+	}
 }

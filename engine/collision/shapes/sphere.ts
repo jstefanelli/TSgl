@@ -162,6 +162,7 @@ export class CollisionSphere implements Collider{
 	force: TSM.vec3 = new TSM.vec3([0, 0])
 	velocity: TSM.vec3 = new TSM.vec3([0, 0])
 	mass: number = 1
+	tags: string[] = new Array<string>()
 
 	private meshInstance: MeshInstance = null
 	private _loaded = false
@@ -179,6 +180,7 @@ export class CollisionSphere implements Collider{
 		if(!CollisionSphere.staticLoaded)
 			CollisionSphere.staticLoad(this.e)
 		this.meshInstance = new MeshInstance(this.e, "circleDebugMesh", MeshProtocol.RAW, ["circleDebugMaterial"], [CollisionSphere.vertBuffer, CollisionSphere.normalBuffer, CollisionSphere.texCoordBuffer, CollisionSphere.meshPartArray, this.e.gl.LINES])
+		this.meshInstance.loadAsync(null)
 		this._loaded = true
 	}
 

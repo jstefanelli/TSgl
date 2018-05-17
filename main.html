@@ -25,26 +25,12 @@
 				}
 			});
 
-			requirejs(['engine/init', 'engine/logic/scene', "engine/wrappers/mesh", "engine/resourceManager", "engine/wrappers/material", "engine/tsm", "engine/collision/shapes/box"], function(init, scene, mesh, manager, material, tsm, box){
-				window.engineObject = init.Initializer.init("engine_container");
+			requirejs(["game/main", "game/level"], function(main, level){
+				window.GameInstance = new main.Game("engine_container");
+				window.GameInstance.gotoLevel("any")
 				console.log("Engine loaded.");
-				box.CollisionBox.runTest();
-				window.scene = new scene.Scene(window.engineObject, window.engineObject);
-				var rootHierarchy = window.scene.rootHierarchy;
-				var mat = new material.Material([], [], [new tsm.TSM.vec4([1, 0, 0, 1]), new tsm.TSM.vec4([1, 1, 1, 1])], "basic", window.engineObject);
-				window.engineObject.manager.registerMaterial("defaultMat", mat);
-				window.objId = rootHierarchy.makeGameObject("assets/my_plane.json", manager.MeshProtocol["JMD"], ["/my_plane_0"]);
-				window.obj = rootHierarchy.getSubObject(window.objId);
-				window.engineObject.gotoNextScene(window.scene);
-				window.obj.transform.position.y = -0.25
-				window.obj.transform.orientation.x = tsm.TSM.toRadians(-90.0);
-				window.obj.transform.scale.x = 5;
-				window.obj.transform.scale.y = 5;
-				window.obj.transform.scale.z = 5;
-				var interval = setInterval(function() {
-					window.obj.transform.orientation.y += 0.01;
-					window.engineObject.draw();
-				}, 33);
+				window.GameInstance.timeScale = 0.1
+				window.GameInstance.start()
 			});
 		</script>
 	</body>
