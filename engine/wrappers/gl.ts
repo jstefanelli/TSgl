@@ -1029,10 +1029,10 @@ export class GLStatus{
 		this._far = c.farPlane
 		this.updateProjectionMatrix()
 		this.viewMatrix = GLStatus.defaultViewMatrix.copy()
-		this.viewMatrix.translate(c.position.copy().negate())
 		this.viewMatrix.rotate(-c.orientation.y, new TSM.vec3([0, 1, 0]))
 		this.viewMatrix.rotate(-c.orientation.x, new TSM.vec3([1, 0, 0]))
 		this.viewMatrix.rotate(-c.orientation.z, new TSM.vec3([0, 0, 1]))
+		this.viewMatrix.translate(c.position.copy().negate())
 		this.updateBuiltIns()
 	}
 

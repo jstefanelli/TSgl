@@ -1,7 +1,7 @@
+import * as jQuery from "jquery"
 import { TSM } from "../engine/tsm"
 import { Scene, GameObject } from "../engine/logic/scene"
 import { Camera } from "../engine/logic/camera"
-import * as JQuery from "jquery"
 import { CollisionWorld } from "../engine/collision/collisionWorld";
 import { TSglContext } from "../engine/wrappers/gl";
 import { Engine, SceneCallback } from "../engine/engine";
@@ -20,6 +20,8 @@ export class Level implements SceneCallback{
 	private gObject: GameObject = null
 	private gObjectId: string
 	private demoBox: CollisionBox
+	private cameraSpeed: number = 0.1
+	private cameraRotateSpeed: number = 0.03
 
 	public constructor(levelFileAddress: string, engine: Engine){
 		this.fileAddress = levelFileAddress
@@ -73,5 +75,54 @@ export class Level implements SceneCallback{
 
 	public onSceneUnloaded(scene: Scene){
 		//Don't care TBH
+	}
+
+	public onKeyDown(key: number){
+		let k = key as JQuery.Key
+		if(k == JQuery.Key.W){
+			this.scene.activeCamera.move(new TSM.vec3(new TSM.vec4([0, 0, -this.cameraSpeed, 0]).multiplyMat4(this.scene.activeCamera.rotationMatrix).xyz))
+			return
+		}
+		if(k == JQuery.Key.S){
+			this.scene.activeCamera.move(new TSM.vec3(new TSM.vec4([0, 0, this.cameraSpeed,0 ]).multiplyMat4(this.scene.activeCamera.rotationMatrix).xyz))
+			return
+		}
+		if(k == JQuery.Key.A){
+			this.scene.activeCamera.move(new TSM.vec3(new TSM.vec4([-this.cameraSpeed, 0, 0, 0]).multiplyMat4(this.scene.activeCamera.rotationMatrix).xyz))
+			return
+		}
+		if(k == JQuery.Key.D){
+			this.scene.activeCamera.move(new TSM.vec3(new TSM.vec4([this.cameraSpeed, 0, 0, 0]).multiplyMat4(this.scene.activeCamera.rotationMatrix).xyz))
+			return
+		}
+
+		if(k == JQuery.Key.ArrowUp){
+			let t = new TSM.vec4([this.cameraRotateSpeed, 0, 0, 0]).multiplyMat4(this.scene.activeCamera.rotationMatrix)
+			this.scene.activeCamera.rotate(new TSM.vec3(t.xyz))
+			return
+		}
+		if(k == JQuery.Key.ArrowDown){
+			let t = new TSM.vec4([-this.cameraRotateSpeed, 0, 0, 0]).multiplyMat4(this.scene.activeCamera.rotationMatrix)
+			this.scene.activeCamera.rotate(new TSM.vec3(t.xyz))
+			return
+		}
+		if(k == JQuery.Key.ArrowLeft){
+			let t = new TSM.vec4([0, this.cameraRotateSpeed, 0, 0]).multiplyMat4(this.scene.activeCamera.rotationMatrix)
+			this.scene.activeCamera.rotate(new TSM.vec3(t.xyz))
+			return
+		}
+		if(k == JQuery.Key.ArrowRight){
+			let t = new TSM.vec4([0, -this.cameraRotateSpeed, 0, 0]).multiplyMat4(this.scene.activeCamera.rotationMatrix)
+			this.scene.activeCamera.rotate(new TSM.vec3(t.xyz))
+			return
+		}
+	}
+
+	public onKeyUp(key: number){
+
+	}
+
+	public onKeyPress(key: number){
+
 	}
 }

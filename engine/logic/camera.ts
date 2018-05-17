@@ -14,4 +14,13 @@ export class Camera{
 	rotate(dir: TSM.vec3){
 		this.orientation.add(dir)
 	}
+
+	get rotationMatrix() : TSM.mat4{
+		let m = new TSM.mat4([])
+		m.setIdentity()
+		m.rotate(this.orientation.y, new TSM.vec3([0, 1, 0]))
+		m.rotate(this.orientation.x, new TSM.vec3([1, 0, 0]))
+		m.rotate(this.orientation.z, new TSM.vec3([0, 0, 1]))
+		return m
+	}
 }

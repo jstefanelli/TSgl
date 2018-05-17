@@ -73,16 +73,37 @@ export class Game implements KeyboardCallback{
 
 	//region Keyboard
 
+	private handleSpecialKeyDown(key: number) : boolean{
+		return false
+	}
+
+	private handleSpecialKeyUp(key: number) : boolean{
+		return false
+	}
+
+	private handleSpecialKeyPress(key: number) : boolean{
+		return false
+	}
+
 	onKeyDown(key: number) {
-		
+		if(!this.handleSpecialKeyDown(key)){
+			if(this.currentLevel != null)
+				this.currentLevel.onKeyDown(key)
+		}
 	}
 
 	onKeyUp(key: number) {
-		
+		if(!this.handleSpecialKeyUp(key)){
+			if(this.currentLevel != null)
+				this.currentLevel.onKeyUp(key)
+		}
 	}
 
 	onKeyPress(key: number) {
-		
+		if(!this.handleSpecialKeyPress(key)){
+			if(this.currentLevel != null)
+				this.currentLevel.onKeyPress(key)
+		}
 	}
 
 	//endregion

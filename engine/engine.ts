@@ -73,6 +73,7 @@ export class Engine implements TSglContext{
 			if(this._keybCB == null)
 				return
 			this._keybCB.onKeyDown(event.which)
+			
 		})
 
 		this.container.on("keyup", (event: JQuery.Event) => {
