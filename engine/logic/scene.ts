@@ -27,7 +27,7 @@ export class Scene{
 		this.context = context
 		this.root = new Hierarchy("root", this, this.context, Transform.identityTransform)
 		this._activeCamera = new Camera();
-		(this.lights[0] as DirectionalLight).direction = new TSM.vec3([0, -0.5, -0.5]).normalize();
+		(this.lights[0] as DirectionalLight).direction = new TSM.vec3([0, -0.5, 0.5]).normalize();
 		(this.lights[0] as DirectionalLight).factors = new TSM.vec3([1, 1, 1])
 		/*let l = new PointLight()
 		l.position = new TSM.vec3([0.0, -0.15, 0])

@@ -97,23 +97,20 @@ export class Level implements SceneCallback{
 		}
 
 		if(k == JQuery.Key.ArrowUp){
-			let t = new TSM.vec4([this.cameraRotateSpeed, 0, 0, 0]).multiplyMat4(this.scene.activeCamera.rotationMatrix)
-			this.scene.activeCamera.rotate(new TSM.vec3(t.xyz))
+			
+			this.scene.activeCamera.rotate(new TSM.vec3([this.cameraRotateSpeed, 0, 0]))
 			return
 		}
 		if(k == JQuery.Key.ArrowDown){
-			let t = new TSM.vec4([-this.cameraRotateSpeed, 0, 0, 0]).multiplyMat4(this.scene.activeCamera.rotationMatrix)
-			this.scene.activeCamera.rotate(new TSM.vec3(t.xyz))
+			this.scene.activeCamera.rotate(new TSM.vec3([-this.cameraRotateSpeed, 0, 0]))
 			return
 		}
 		if(k == JQuery.Key.ArrowLeft){
-			let t = new TSM.vec4([0, this.cameraRotateSpeed, 0, 0]).multiplyMat4(this.scene.activeCamera.rotationMatrix)
-			this.scene.activeCamera.rotate(new TSM.vec3(t.xyz))
+			this.scene.activeCamera.rotate(new TSM.vec3([0, this.cameraRotateSpeed, 0]))
 			return
 		}
 		if(k == JQuery.Key.ArrowRight){
-			let t = new TSM.vec4([0, -this.cameraRotateSpeed, 0, 0]).multiplyMat4(this.scene.activeCamera.rotationMatrix)
-			this.scene.activeCamera.rotate(new TSM.vec3(t.xyz))
+			this.scene.activeCamera.rotate(new TSM.vec3([0, -this.cameraRotateSpeed, 0]))
 			return
 		}
 	}
