@@ -9,7 +9,8 @@ import { Game } from "./main";
 import { MeshPart } from "../engine/wrappers/mesh";
 import { MeshProtocol } from "../engine/resourceManager";
 import { CollisionBox } from "../engine/collision/shapes/box";
-
+import { CollisionItem } from "../engine/collision/collisionItem"
+import { Transform } from "../engine/wrappers/world";
 
 export class Level implements SceneCallback{
 	private fileAddress: string
@@ -41,13 +42,16 @@ export class Level implements SceneCallback{
 		else
 			throw new Error("Given incorrect gameObject (actually a Hierarchy or null)")
 
-		this.gObject.transform.orientation.x = -Math.PI / 2
+		let offsetTransform = Transform.identityTransform
+		offsetTransform.orientation.x = -Math.PI / 2
 		this.scene.activeCamera.position.y = 0.5
 		this.loadCB = cb
 
 		this.demoBox = new CollisionBox(this._engine)
 
 		this.world.addCollider("test", this.demoBox)
+
+		let item = new CollisionItem(this.gObject, this.demoBox, offsetTransform)
 
 		this._engine.sceneCB = this
 		this._engine.gotoNextScene(this.scene)
@@ -60,9 +64,9 @@ export class Level implements SceneCallback{
 	}
 
 	public update(deltaTime: number){
-		this.gObject.transform.orientation.y += Math.PI * deltaTime / 2;
 		this.demoBox.transform.orientation.y += Math.PI * deltaTime / 2;
 		this.world.step(deltaTime)
+		this.scene.update(deltaTime)
 	}
 
 	public onSceneLoaded(scene: Scene){

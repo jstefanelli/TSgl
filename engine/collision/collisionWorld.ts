@@ -13,7 +13,8 @@ export interface Collider{
 	tags: string[]
 
 	draw(status: GLStatus) : void
-
+	load() : void
+	unload() : void
 }
 
 export enum CollisionMode{

@@ -8,10 +8,19 @@ import { Engine } from "../engine";
 import { Map } from "../map"
 import { Light, DirectionalLight, PointLight, LightType } from "../wrappers/light"
 import { Camera } from "./camera"
+import { jmdLoader } from "../fileTypes/jmd";
 
 export interface ILogicObject{
 	readonly loaded: boolean
 	readonly id: string
+}
+
+export interface IGameObjectItem{
+	readonly loaded: boolean
+	load(context: TSglContext) : void
+	unload() : void
+	update(delta: number) : void
+	draw(status: GLStatus) : void
 }
 
 export class Scene{
@@ -76,6 +85,10 @@ export class Scene{
 
 		this.status.applyCamera(this._activeCamera)
 		this.root.draw(this.status, lts)
+	}
+
+	update(delta: number){
+		this.rootHierarchy.update(delta)
 	}
 
 	loadAsync(){
@@ -225,16 +238,27 @@ export class Hierarchy implements ILogicObject{
 		})
 		status.revertLastModelTransform()
 	}
+
+	update(delta: number){
+		this.gameObjects.forEach((value: GameObject) => {
+			value.update(delta)
+		})
+		this.hierarchies.forEach((value: Hierarchy) => {
+			value.update(delta)
+		})
+		
+	}
 }
 
 export class GameObject implements ILogicObject{
 	protected _loaded: boolean = false
 	transform: Transform
-	meshInstance: MeshInstance
+	private meshInstance: MeshInstance
 	owner: Hierarchy
 	id: string
-	context: TSglContext
+	private context: TSglContext
 	hidden: boolean = false
+	items: Map<string, IGameObjectItem> = new Map<string, IGameObjectItem>()
 
 	constructor(owner: Hierarchy, meshName: string, meshProtocol: MeshProtocol, materilaNames: string[], id: string, context: TSglContext){
 		this.owner = owner
@@ -253,7 +277,16 @@ export class GameObject implements ILogicObject{
 			return
 		status.applyTransformToModel(this.transform)
 		this.meshInstance.draw(status, lights)
+		this.items.forEach((key: string, value: IGameObjectItem) => {
+			value.draw(status)
+		})
 		status.revertLastModelTransform()
+	}
+
+	update(delta: number){
+		this.items.forEach((key: string, value: IGameObjectItem) => {
+			value.update(delta)
+		})
 	}
 
 	loadAsync(){
@@ -261,10 +294,33 @@ export class GameObject implements ILogicObject{
 			this._loaded = true
 			this.owner.onObjectLoaded(this)
 		})
+		
+		this.items.forEach((key: string, value: IGameObjectItem) => {
+			value.load(this.context)
+		})
 	}
 
 	unload(){
 		this.meshInstance.unload()
 		this._loaded = false
+	}
+
+	addItem(tag: string, item: IGameObjectItem){
+		if(!this.items.has(tag)){
+			this.items.set(tag, item)
+		}
+	}
+
+	getItem(tag: string) : IGameObjectItem | null{
+		if(this.items.has(tag)){
+			return this.items.get(tag)
+		}
+		return null
+	}
+
+	dropItem(tag: string){
+		if(this.items.has(tag)){
+			this.items.delete(tag)
+		}
 	}
 }
