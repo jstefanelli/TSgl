@@ -882,6 +882,7 @@ export class GLStatus{
 	private _fov: number
 	private _near: number
 	private _far: number
+	private shouldUpdateBuiltIns = true
 
 	constructor(width: number = 1280, height: number = 720, fov: number = 90.0, near: number = 0.01, far: number = 100){
 		this._frameWidth = width
@@ -891,11 +892,12 @@ export class GLStatus{
 		this._far = far
 		this.updateProjectionMatrix()
 		this.viewMatrix = GLStatus.defaultViewMatrix.copy()
-		this.updateBuiltIns()
+		this.shouldUpdateBuiltIns = true
 	}
 
 	private updateProjectionMatrix(){
 		this._projectionMatrix = TSM.mat4.perspective(this._fov, this._frameWidth / this._frameHeight, this._near, this._far)
+		this.shouldUpdateBuiltIns = true
 	}
 
 	set frameWidth(width: number){
@@ -944,41 +946,53 @@ export class GLStatus{
 	}
 
 	get modelMatrix() : TSM.mat4{
+		if(this.shouldUpdateBuiltIns)
+			this.updateBuiltIns()
 		return this._modelMatrix
 	}
 
 	set modelMatrix(mat: TSM.mat4){
 		this._modelMatrix = mat
-		this.updateBuiltIns()
+		this.shouldUpdateBuiltIns = true
 	}
 	
 	get viewMatrix() : TSM.mat4{
+		if(this.shouldUpdateBuiltIns)
+			this.updateBuiltIns()
 		return this._viewMatrix
 	}
 
 	set viewMatrix(mat: TSM.mat4){
 		this._viewMatrix = mat
-		this.updateBuiltIns()
+		this.shouldUpdateBuiltIns = true
 	}
 
 	get projectionMatrix() : TSM.mat4 {
+		if(this.shouldUpdateBuiltIns)
+			this.updateBuiltIns()
 		return this._projectionMatrix
 	}
 
 	set projectionMatrix(mat: TSM.mat4){
 		this._projectionMatrix = mat
-		this.updateBuiltIns()
+		this.shouldUpdateBuiltIns = true
 	}
 
 	get modelView() : TSM.mat4{
+		if(this.shouldUpdateBuiltIns)
+			this.updateBuiltIns()
 		return this._modelView
 	}
 
 	get normalMat() : TSM.mat4 {
+		if(this.shouldUpdateBuiltIns)
+			this.updateBuiltIns()
 		return this._normalMat
 	}
 
 	get mvp() : TSM.mat4 {
+		if(this.shouldUpdateBuiltIns)
+			this.updateBuiltIns()
 		return this._mvp
 	}
 
@@ -1033,7 +1047,7 @@ export class GLStatus{
 		this.viewMatrix.rotate(-c.orientation.x, new TSM.vec3([1, 0, 0]))
 		this.viewMatrix.rotate(-c.orientation.y, new TSM.vec3([0, 1, 0]))
 		this.viewMatrix.translate(c.position.copy().negate())
-		this.updateBuiltIns()
+		this.shouldUpdateBuiltIns = true
 	}
 
 	applyTransformToModel(t: Transform){
@@ -1046,17 +1060,18 @@ export class GLStatus{
 		myMat.rotate(t.orientation.z, new TSM.vec3([0, 0, 1]))
 		myMat.scale(t.scale)
 		this._modelMatrix = myMat
-		this.updateBuiltIns()
+		this.shouldUpdateBuiltIns = true
 	}
 
 	revertLastModelTransform(){
 		this._modelMatrix = (this.modelStack.length > 0) ? this.modelStack.pop() : this._modelMatrix
-		this.updateBuiltIns()
+		this.shouldUpdateBuiltIns = true
 	}
 
 	private updateBuiltIns(){
 		this._modelView = this._viewMatrix.copy().multiply(this._modelMatrix)
 		this._mvp = this._projectionMatrix.copy().multiply(this._modelView)
 		this._normalMat = this._modelView.copy().inverse().transpose()
+		this.shouldUpdateBuiltIns = false
 	}
 }
