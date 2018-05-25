@@ -16,11 +16,12 @@ Available:
 * [x] Proprietary JSON-based model format
 * [x] Complete Phong-capable material system
 * [x] Rudimentary phong shader with single, directional light support
+* [x] Normal mapping
+* [x] Multi-light and point light phong shader
 
 Planned:
 
-* [ ] Normal mapping (infrastructure ready, only shader code missing)
-* [ ] Multi-light and point light phong shader
+
 * [ ] 2D Physics engine
 * [ ] Runtime instancing of gameobjects
 * [ ] Runtime Engine extensibility
